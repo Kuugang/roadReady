@@ -44,7 +44,7 @@ const buyerRegister = asyncHandler(async (req, res) => {
         const newUserDoc = await getDoc(newUserRef);
         const newUser = newUserDoc.data();
 
-        return res.status(200).send("User successfully created");
+        return res.status(200).json({ "status": "success", "message": "Registered succesfully" });
     } catch (error) {
         console.error('Error registering user:', error);
         res.status(500).send(error);
@@ -86,15 +86,86 @@ const dealerRegister = asyncHandler(async (req, res) => {
             privilege: "dealer"
         });
 
-
-
         const newUserDoc = await getDoc(newUserRef);
         const newUser = newUserDoc.data();
 
-        return res.status(200).send("User successfully created");
+        return res.status(200).json({ "status": "success", "message": "Registered succesfully" });
     } catch (error) {
         console.error('Error registering user:', error);
         res.status(500).send(error);
+    }
+});
+
+
+const buyerLogin = asyncHandler(async (req, res) => {
+    try {
+
+        let { username, password } = req.body;
+
+        if (
+            !username ||
+            !password ||
+            username.trim().length == 0 ||
+            password.trim().length == 0
+        ) {
+            return res.status(400).send("Please enter a username and password");
+        }
+
+        let user = (
+            await queryDatabase("SELECT * FROM users WHERE username = $1", [username])
+        ).rows[0];
+
+        if (!user) {
+            return res.status(400).send("Invalid username or password");
+        }
+
+        const passwordMatch = await bcrypt.compare(password, user.password);
+
+        if (!passwordMatch)
+            return res.status(400).send("Invalid username or password");
+
+        let {
+            id,
+            username: fetchedUsername,
+            firstname,
+            lastname,
+            privilege,
+        } = user;
+
+        const requests = (
+            await queryDatabase("SELECT * FROM requests WHERE user_id = $1", [
+                user.id,
+            ])
+        ).rows;
+
+        const notifications = await getUserNotifications(id);
+
+        let token = jwt.sign(
+            { id, username, firstname, lastname, privilege },
+            process.env.JWT_SECRET,
+            { expiresIn: 86400 }
+        );
+
+        res.set(
+            "Set-Cookie",
+            `boang=${token};Path=/; Domain=metroevents-api.vercel.app;SameSite=None;Secure;`
+        );
+        res.status(200).json({
+            user: {
+                id,
+                username,
+                firstname,
+                lastname,
+                privilege,
+                requests,
+                notifications,
+                token,
+            },
+        });
+        return;
+    } catch (error) {
+        console.error("Error:", error);
+        return res.status(500).send("Internal Server Error");
     }
 });
 

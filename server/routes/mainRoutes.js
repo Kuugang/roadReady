@@ -17,6 +17,8 @@ const {
 // router.route("/").get(getUsers);
 // router.route("/dealer/register").post();
 router.route("/buyer/register").post(buyerRegister);
+router.route("/buyer/login").post(dealerRegister);
+
 router.route("/dealer/register").post(dealerRegister);
 router.route("/user").get(getUser);
 
