@@ -7,14 +7,17 @@ const {
 } = require("../controllers/middlewares")
 
 const {
-    getUsers,
+    buyerRegister,
+    dealerRegister,
     getUser,
     register
 } = require("../controllers/mainController");
 
 
-router.route("/").get(getUsers);
-router.route("/user/register").post(register);
+// router.route("/").get(getUsers);
+// router.route("/dealer/register").post();
+router.route("/buyer/register").post(buyerRegister);
+router.route("/dealer/register").post(dealerRegister);
 router.route("/user").get(getUser);
 
 module.exports = router;
