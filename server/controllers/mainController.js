@@ -104,8 +104,10 @@ const login = asyncHandler(async (req, res) => {
         }
 
         const { username, password, loginType } = req.body;
-        let col = "dealer";
 
+        if (loginType != "dealer" && loginType != "buyer") return res.status(400).json({ "message": "invalid login type" });
+
+        let col = "dealer";
         if (loginType == "buyer") {
             col = `buyer`;
         }
