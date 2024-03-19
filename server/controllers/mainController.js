@@ -214,13 +214,12 @@ const getListing = asyncHandler(async (req, res) => {
             }
 
             const listingData = listingDocSnapshot.data();
-            return res.status(200).json(listingData);
+            return res.status(200).json({ listing: listingData });
         }
 
         const listingsSnapshot = await getDocs(listingCol);
         const listingsList = listingsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         return res.status(200).json({ "listings": listingsList });
-
     } catch (error) {
         console.error("Error:", error);
         return res.status(500).json({ "message": "Internal Server Error" });
