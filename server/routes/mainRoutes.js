@@ -9,17 +9,23 @@ const {
 const {
     buyerRegister,
     dealerRegister,
+    login,
+
+
     getUsers,
     getUser
 } = require("../controllers/mainController");
 
 
 router.route("/buyer/register").post(buyerRegister);
-router.route("/buyer/login").post(dealerRegister);
+router.route("/dealer/register").post(dealerRegister);
+router.route("/user/login").post(login);
+
+
+
 
 router.route("/").get(getUsers);
 
-router.route("/dealer/register").post(dealerRegister);
 router.route("/user").get(getUser);
 
 module.exports = router;

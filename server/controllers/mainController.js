@@ -6,8 +6,6 @@ const fs = require("fs");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-
-
 const buyerRegister = asyncHandler(async (req, res) => {
     try {
         const requiredFields = ['username', 'password', 'email', 'firstName', 'lastName', 'phonenumber', 'address', 'gender'];
@@ -96,86 +94,130 @@ const dealerRegister = asyncHandler(async (req, res) => {
     }
 });
 
-
-const buyerLogin = asyncHandler(async (req, res) => {
+const login = asyncHandler(async (req, res) => {
     try {
+        const requiredFields = ['username', 'password', 'loginType'];
 
-        let { username, password } = req.body;
-
-        // if (
-        //     !username ||
-        //     !password ||
-        //     username.trim().length == 0 ||
-        //     password.trim().length == 0
-        // ) {
-        //     return res.status(400).send("Please enter a username and password");
-        // }
-
-        let user = (
-            await queryDatabase("SELECT * FROM users WHERE username = $1", [username])
-        ).rows[0];
-
-        if (!user) {
-            return res.status(400).send("Invalid username or password");
+        const validationError = validateRequiredFields(requiredFields, req.body);
+        if (validationError) {
+            return res.status(400).send(validationError);
         }
 
+        const { username, password, loginType } = req.body;
+        let col = "dealer";
+
+        if (loginType == "buyer") {
+            col = `buyer`;
+        }
+
+        const usersCol = collection(db, col);
+        const userQuery = query(usersCol, where('username', '==', username));
+        const userSnapshot = await getDocs(userQuery);
+        if (userSnapshot.empty) {
+            return res.status(400).json({ "message": "Invalid username or password" });
+        }
+
+        let user;
+        userSnapshot.forEach((doc) => {
+            user = doc.data();
+            user.id = doc.id;
+        });
+
         const passwordMatch = await bcrypt.compare(password, user.password);
+        if (!passwordMatch) {
+            return res.status(400).json({ "message": "Invalid username or password" });
+        }
 
-        if (!passwordMatch)
-            return res.status(400).send("Invalid username or password");
+        const { id, username: fetchedUsername, firstname, lastname, privilege } = user;
 
-        let {
-            id,
-            username: fetchedUsername,
-            firstname,
-            lastname,
-            privilege,
-        } = user;
-
-        const requests = (
-            await queryDatabase("SELECT * FROM requests WHERE user_id = $1", [
-                user.id,
-            ])
-        ).rows;
-
-        const notifications = await getUserNotifications(id);
-
-        let token = jwt.sign(
-            { id, username, firstname, lastname, privilege },
+        const token = jwt.sign(
+            { id, username: fetchedUsername, firstname, lastname, privilege },
             process.env.JWT_SECRET,
             { expiresIn: 86400 }
         );
 
-        res.set(
-            "Set-Cookie",
-            `boang=${token};Path=/; Domain=metroevents-api.vercel.app;SameSite=None;Secure;`
-        );
+        res.cookie('jwt', token, {
+            path: '/',
+            domain: '',
+            sameSite: 'None',
+            secure: true
+        });
+
         res.status(200).json({
             user: {
                 id,
-                username,
+                username: fetchedUsername,
                 firstname,
                 lastname,
                 privilege,
-                requests,
-                notifications,
-                token,
-            },
+                token
+            }
         });
-        return;
     } catch (error) {
         console.error("Error:", error);
         return res.status(500).send("Internal Server Error");
     }
 });
 
+// const dealerLogin = asyncHandler(async (req, res) => {
+//     try {
+//         const requiredFields = ['username', 'password'];
+//         const { username, password } = req.body;
 
-// async function getUsers(db) {
-//   const usersCol = collection(db, 'users');
-//   const usersSnapshot = await getDocs(citiesCol);
-//   const usersList= usersSnapshot.docs.map(doc => doc.data());
-//   return usersList;
-// }
+//         const validationError = validateRequiredFields(requiredFields, req.body);
+//         if (validationError) {
+//             return res.status(400).send(validationError);
+//         }
+
+//         const usersCol = collection(db, 'dealer');
+//         const userQuery = query(usersCol, where('username', '==', username));
+//         const userSnapshot = await getDocs(userQuery);
+//         if (userSnapshot.empty) {
+//             return res.status(400).json({ "message": "Invalid username or password" });
+//         }
+
+//         let user;
+//         userSnapshot.forEach((doc) => {
+//             user = doc.data();
+//             user.id = doc.id;
+//         });
+
+//         const passwordMatch = await bcrypt.compare(password, user.password);
+//         if (!passwordMatch) {
+//             return res.status(400).json({ "message": "Invalid username or password" });
+//         }
+
+//         const { id, username: fetchedUsername, firstname, lastname, privilege } = user;
+
+//         const token = jwt.sign(
+//             { id, username: fetchedUsername, firstname, lastname, privilege },
+//             process.env.JWT_SECRET,
+//             { expiresIn: 86400 }
+//         );
+
+//         res.cookie('jwt', token, {
+//             path: '/',
+//             domain: '',
+//             sameSite: 'None',
+//             secure: true
+//         });
+
+//         res.status(200).json({
+//             user: {
+//                 id,
+//                 username: fetchedUsername,
+//                 firstname,
+//                 lastname,
+//                 privilege,
+//                 token
+//             }
+//         });
+//     } catch (error) {
+//         console.error("Error:", error);
+//         return res.status(500).send("Internal Server Error");
+//     }
+// });
+
 
 const getUser = asyncHandler(async (req, res) => {
     const userId = req.query.userId;
@@ -211,6 +253,8 @@ const getUsers = asyncHandler(async (req, res) => {
 module.exports = {
     buyerRegister,
     dealerRegister,
+    login,
+
     getUsers,
     getUser
 }
