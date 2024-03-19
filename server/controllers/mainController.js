@@ -219,7 +219,7 @@ const getListing = asyncHandler(async (req, res) => {
 
         const listingsSnapshot = await getDocs(listingCol);
         const listingsList = listingsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        return res.status(200).json(listingsList);
+        return res.status(200).json({ "listings": listingsList });
 
     } catch (error) {
         console.error("Error:", error);
