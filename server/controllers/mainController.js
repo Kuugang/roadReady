@@ -1,10 +1,18 @@
 const asyncHandler = require("express-async-handler");
-const { collection, getDocs, getDoc, doc, query, where, addDoc } = require("firebase/firestore/lite")
+const { collection, getDocs, getDoc, doc, query, where, addDoc, deleteDoc } = require("firebase/firestore/lite")
+const { getStorage, ref, getDownloadURL, uploadBytesResumable, list } = require("firebase/storage")
+
 const { validateRequiredFields } = require("./helper")
 const { db } = require("../config/dbConfig");
 const fs = require("fs");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+
+const storage = getStorage();
+
+const listingCol = collection(db, 'listing');
+const buyerCol = collection(db, 'buyer');
+const dealerCol = collection(db, 'dealer');
 
 const buyerRegister = asyncHandler(async (req, res) => {
     try {
@@ -17,9 +25,7 @@ const buyerRegister = asyncHandler(async (req, res) => {
 
         let { username, password, email, firstName, lastName, phonenumber, address, gender } = req.body;
 
-        const usersCol = collection(db, 'buyer');
-
-        const userQuery = query(usersCol, where('username', '==', username));
+        const userQuery = query(buyerCol, where('username', '==', username));
         const userSnapshot = await getDocs(userQuery);
         if (!userSnapshot.empty)
             return res.status(409).send("Username already taken");
@@ -39,8 +45,8 @@ const buyerRegister = asyncHandler(async (req, res) => {
             privilege: "buyer"
         });
 
-        const newUserDoc = await getDoc(newUserRef);
-        const newUser = newUserDoc.data();
+        // const newUserDoc = await getDoc(newUserRef);
+        // const newUser = newUserDoc.data();
 
         return res.status(200).json({ "status": "success", "message": "Registered succesfully" });
     } catch (error) {
@@ -61,9 +67,8 @@ const dealerRegister = asyncHandler(async (req, res) => {
 
         let { username, password, email, firstName, lastName, phoneNumber, address, gender, dealershipName } = req.body;
 
-        const usersCol = collection(db, 'dealer');
 
-        const userQuery = query(usersCol, where('username', '==', username));
+        const userQuery = query(dealerCol, where('username', '==', username));
         const userSnapshot = await getDocs(userQuery);
         if (!userSnapshot.empty)
             return res.status(409).send("Username already taken");
@@ -81,7 +86,7 @@ const dealerRegister = asyncHandler(async (req, res) => {
             gender,
             address,
             dealershipName,
-            privilege: "dealer"
+            privilege: "dealer",
         });
 
         const newUserDoc = await getDoc(newUserRef);
@@ -107,13 +112,13 @@ const login = asyncHandler(async (req, res) => {
 
         if (loginType != "dealer" && loginType != "buyer") return res.status(400).json({ "message": "invalid login type" });
 
-        let col = "dealer";
+        let col = dealerCol
+
         if (loginType == "buyer") {
-            col = `buyer`;
+            col = buyerCol
         }
 
-        const usersCol = collection(db, col);
-        const userQuery = query(usersCol, where('username', '==', username));
+        const userQuery = query(col, where('username', '==', username));
         const userSnapshot = await getDocs(userQuery);
         if (userSnapshot.empty) {
             return res.status(400).json({ "message": "Invalid username or password" });
@@ -161,64 +166,98 @@ const login = asyncHandler(async (req, res) => {
     }
 });
 
-// const dealerLogin = asyncHandler(async (req, res) => {
-//     try {
-//         const requiredFields = ['username', 'password'];
-//         const { username, password } = req.body;
+//LISTING
 
-//         const validationError = validateRequiredFields(requiredFields, req.body);
-//         if (validationError) {
-//             return res.status(400).send(validationError);
-//         }
+const createListing = asyncHandler(async (req, res) => {
+    try {
+        const requiredFields = ['modelAndName', 'make', 'fuelType', 'power', 'transmission', 'engine', 'fuelTankCapacity', 'seatingCapacity', 'price'];
 
-//         const usersCol = collection(db, 'dealer');
-//         const userQuery = query(usersCol, where('username', '==', username));
-//         const userSnapshot = await getDocs(userQuery);
-//         if (userSnapshot.empty) {
-//             return res.status(400).json({ "message": "Invalid username or password" });
-//         }
+        const validationError = validateRequiredFields(requiredFields, req.body);
+        if (validationError) {
+            return res.status(400).send(validationError);
+        }
 
-//         let user;
-//         userSnapshot.forEach((doc) => {
-//             user = doc.data();
-//             user.id = doc.id;
-//         });
+        const { modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price } = req.body;
 
-//         const passwordMatch = await bcrypt.compare(password, user.password);
-//         if (!passwordMatch) {
-//             return res.status(400).json({ "message": "Invalid username or password" });
-//         }
+        const metadata = {
+            contentType: req.file.mimetype
+        }
 
-//         const { id, username: fetchedUsername, firstname, lastname, privilege } = user;
+        const storageRef = ref(storage, `listing/${req.file.originalname + "" + new Date()}`);
+        const snapshot = await uploadBytesResumable(storageRef, req.file.buffer, metadata)
 
-//         const token = jwt.sign(
-//             { id, username: fetchedUsername, firstname, lastname, privilege },
-//             process.env.JWT_SECRET,
-//             { expiresIn: 86400 }
-//         );
+        const imageURL = await getDownloadURL(snapshot.ref);
+        const newListingRef = await addDoc(listingCol, {
+            modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, imageURL, dealerId: req.tokenData.id,
+        });
 
-//         res.cookie('jwt', token, {
-//             path: '/',
-//             domain: '',
-//             sameSite: 'None',
-//             secure: true
-//         });
+        const newListingDoc = await getDoc(newListingRef);
+        const newListing = newListingDoc.data();
 
-//         res.status(200).json({
-//             user: {
-//                 id,
-//                 username: fetchedUsername,
-//                 firstname,
-//                 lastname,
-//                 privilege,
-//                 token
-//             }
-//         });
-//     } catch (error) {
-//         console.error("Error:", error);
-//         return res.status(500).send("Internal Server Error");
-//     }
-// });
+        return res.status(200).json({ "message": "Successfully listed vehicle", "list": newListing });
+    } catch (error) {
+        console.error("Error:", error);
+        return res.status(500).json({ "message": "Internal Server Error" });
+    }
+})
+
+const getListing = asyncHandler(async (req, res) => {
+    try {
+        const { listingId } = req.body;
+
+        if (listingId) {
+            const listingDocRef = doc(listingCol, req.body.listingId);
+            const listingDocSnapshot = await getDoc(listingDocRef);
+
+            if (!listingDocSnapshot.exists()) {
+                return res.status(404).json({ message: "Listing not found" });
+            }
+
+            const listingData = listingDocSnapshot.data();
+            return res.status(200).json(listingData);
+        }
+
+        const listingsSnapshot = await getDocs(listingCol);
+        const listingsList = listingsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return res.status(200).json(listingsList);
+
+    } catch (error) {
+        console.error("Error:", error);
+        return res.status(500).json({ "message": "Internal Server Error" });
+    }
+})
+
+const deleteListing = asyncHandler(async (req, res) => {
+    try {
+        const requiredFields = ['listingId'];
+        const validationError = validateRequiredFields(requiredFields, req.body);
+
+        if (validationError) {
+            return res.status(400).send(validationError);
+        }
+
+        console.log(req.tokenData.id);
+        console.log(req.body.listingId);
+
+        const listingDocRef = doc(listingCol, req.body.listingId);
+        const listingDocSnapshot = await getDoc(listingDocRef);
+
+        if (!listingDocSnapshot.exists()) {
+            return res.status(404).json({ message: "Listing not found" });
+        }
+
+        const listingData = listingDocSnapshot.data();
+        if (listingData.dealerId !== req.tokenData.id) {
+            return res.status(403).json({ message: "Unauthorized access to listing" });
+        }
+
+        await deleteDoc(listingDocRef);
+        return res.status(200).json({ message: "Deleted listing successfully" });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+});
 
 
 const getUser = asyncHandler(async (req, res) => {
@@ -246,7 +285,6 @@ const getUser = asyncHandler(async (req, res) => {
 
 
 const getUsers = asyncHandler(async (req, res) => {
-    const usersCol = collection(db, 'buyer');
     const usersSnapshot = await getDocs(usersCol);
     const usersList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     return res.status(200).json(usersList);
@@ -256,7 +294,11 @@ module.exports = {
     buyerRegister,
     dealerRegister,
     login,
+    createListing,
+    deleteListing,
 
-    getUsers,
-    getUser
+
+    getListing,
+
+    getUsers
 }
