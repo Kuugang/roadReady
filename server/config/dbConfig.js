@@ -5,7 +5,6 @@ const dotenv = require("dotenv")
 // import { } from 'firebase/<service>';
 
 // TODO: Replace the following with your app's Firebase project configuration
-console.log(process.env.apiKey)
 const firebaseConfig = {
     apiKey: process.env.apiKey,
     authDomain: process.env.authDomain,

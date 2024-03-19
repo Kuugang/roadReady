@@ -9,15 +9,15 @@ const {
 const {
     buyerRegister,
     dealerRegister,
-    getUser,
-    register
+    getUsers,
+    getUser
 } = require("../controllers/mainController");
 
 
-// router.route("/").get(getUsers);
-// router.route("/dealer/register").post();
 router.route("/buyer/register").post(buyerRegister);
 router.route("/buyer/login").post(dealerRegister);
+
+router.route("/").get(getUsers);
 
 router.route("/dealer/register").post(dealerRegister);
 router.route("/user").get(getUser);

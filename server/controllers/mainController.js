@@ -102,14 +102,14 @@ const buyerLogin = asyncHandler(async (req, res) => {
 
         let { username, password } = req.body;
 
-        if (
-            !username ||
-            !password ||
-            username.trim().length == 0 ||
-            password.trim().length == 0
-        ) {
-            return res.status(400).send("Please enter a username and password");
-        }
+        // if (
+        //     !username ||
+        //     !password ||
+        //     username.trim().length == 0 ||
+        //     password.trim().length == 0
+        // ) {
+        //     return res.status(400).send("Please enter a username and password");
+        // }
 
         let user = (
             await queryDatabase("SELECT * FROM users WHERE username = $1", [username])
@@ -202,7 +202,7 @@ const getUser = asyncHandler(async (req, res) => {
 
 
 const getUsers = asyncHandler(async (req, res) => {
-    const usersCol = collection(db, 'users');
+    const usersCol = collection(db, 'buyer');
     const usersSnapshot = await getDocs(usersCol);
     const usersList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     return res.status(200).json(usersList);
