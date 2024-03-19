@@ -1,4 +1,4 @@
-const dotenv = require("dotenv")
+const dotenv = require("dotenv").config();
 const express = require("express");
 const cors = require("cors")
 const app = express();
@@ -12,12 +12,12 @@ app.use(
     cors({
         origin:
             process.env.node_env = "production" ? "https://roadreadya-api.vercel.app" : "http://localhost:3000", credentials: true, exposedHeaders: ["Authorization"]
-}))
+    }))
 
 app.use(cookieParser());
 app.use(helmet());
-app.use(bodyParser.urlencoded({extended: true}));
-app.use(bodyParser.json({limit:"10mb"}))
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: "10mb" }))
 app.use(express.json());
 
 app.use("/", require("./routes/mainRoutes"));
