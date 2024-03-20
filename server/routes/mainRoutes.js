@@ -27,6 +27,7 @@ const {
     getUsers,
     getUser,
     updateUserPrivilege,
+    getDealerShip,
 } = require("../controllers/mainController");
 
 
@@ -37,6 +38,8 @@ router.route("/dealer/register").post(dealerRegister);
 router.route("/user/login").post(login);
 router.route("/dealer/list").post(upload.single("image"), verifyDealerAgentToken, createListing);
 router.route("/dealer/list").delete(verifyDealerAgentToken, deleteListing);
+
+router.route("/dealership").get(getDealerShip);
 
 router.route("/listing").get(getListing);
 
