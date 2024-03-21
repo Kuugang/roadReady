@@ -1,9 +1,14 @@
+const { db } = require("../config/dbConfig");
+const { supabase, pool } = require("../config/supabaseConfig")
 const asyncHandler = require("express-async-handler");
+
+
 const { collection, documentId, getDocs, getDoc, doc, query, where, addDoc, deleteDoc, updateDoc } = require("firebase/firestore/lite")
+
+
 const { getStorage, ref, getDownloadURL, uploadBytesResumable } = require("firebase/storage")
 
 const { validateRequiredFields, queryDatabase } = require("./helper")
-const { db } = require("../config/dbConfig");
 const fs = require("fs");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -14,184 +19,205 @@ const adminCol = collection(db, 'admin');
 const listingCol = collection(db, 'listing');
 const buyerCol = collection(db, 'buyer');
 const dealershipCol = collection(db, 'dealership');
-const dealerCol = collection(db, 'dealer');
 const requestCol = collection(db, 'request');
 const usersCol = collection(db, "users");
 
+
+
 const buyerRegister = asyncHandler(async (req, res) => {
     try {
+
         const requiredFields = ['email', 'password', 'firstName', 'lastName', 'phoneNumber', 'address', 'gender'];
         validateRequiredFields(requiredFields, req.body, res);
 
         let { email, password, firstName, lastName, phoneNumber, address, gender } = req.body;
 
-        const user = await queryDatabase(usersCol, where('email', '==', email), "User not found");
+        let { data, error } = await supabase.auth.signUp({
+            email: email,
+            password: password
+        })
 
-        if (user[0]) {
-            return res.status(409).json({ message: "Email is already registered to an account" });
+        if (error || !data) {
+            return res.status(500).json(error);
         }
 
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        const createUserProfileQuery = `
+        INSERT INTO tblUserProfile (userid, firstname, lastname, phonenumber, address, gender, role)
+        VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
+        RETURNING *;
+    `;
 
-        await addDoc(usersCol, {
-            firstName,
-            lastName,
-            email,
-            password: hashedPassword,
-            phoneNumber,
-            gender,
-            address,
-            privilege: "buyer"
-        });
+        const { rows: userProfile, error: profileError } = await pool.query(createUserProfileQuery, [data.user.id, firstName, lastName, phoneNumber, address, gender]);
 
-        return res.status(200).json({ "status": "success", "message": "Registered succesfully" });
+        if (profileError) {
+            await supabase.auth.api.deleteUser(data.user.id);
+            return res.status(500).json({ error: 'Error creating user profile' });
+        }
+
+        return res.status(201).json({ message: "Successfully registered" });
     } catch (error) {
-        console.error('Error registering user:', error);
-        res.status(500).send(error);
+        console.log(error);
+        return res.status(500).json({ error });
     }
 });
 
 
 const dealerRegister = asyncHandler(async (req, res) => {
     try {
-        const requiredFields = ['email', 'password', 'firstName', 'lastName', 'phoneNumber', 'address', 'gender', "dealershipName"];
-
+        const requiredFields = ['email', 'password', 'firstName', 'lastName', 'phoneNumber', 'address', 'gender', 'dealershipName'];
         validateRequiredFields(requiredFields, req.body, res);
 
         let { email, password, firstName, lastName, phoneNumber, address, gender, dealershipName } = req.body;
 
-        const dealership = await queryDatabase(dealershipCol, where('name', '==', dealershipName), "Dealership not found");
+        let query = "SELECT id, name FROM tblDealership WHERE name = $1"
 
-        if (dealership.error) {
-            return res.status(404).json(dealership);
+        const dealership = (await pool.query(query, [dealershipName])).rows[0];
+
+        console.log(dealership)
+
+        if (!dealership) {
+            return res.status(400).json({ error: 'Dealership not found' });
         }
 
-        const user = await queryDatabase(usersCol, where('email', '==', email), "User not found");
+        let { data, error } = await supabase.auth.signUp({
+            email: email,
+            password: password
+        })
 
-        if (user[0]) {
-            return res.status(409).json({ message: "Email is already registered to an account" });
+        if (error || !data) {
+            return res.status(500).json(error);
         }
 
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        const createUserProfileQuery = `
+            INSERT INTO tblUserProfile(userid, firstname, lastname, phonenumber, address, gender, role)
+            VALUES ($1, $2, $3, $4, $5, $6, 'dealershipAgentApplicant')
+            RETURNING *;
+        `;
 
-        await addDoc(usersCol, {
-            firstName,
-            lastName,
-            password: hashedPassword,
-            email,
-            phoneNumber,
-            gender,
-            address,
-            dealershipName,
-            privilege: "dealershipAgentApplicant",
-        });
+        const { rows: userProfile, error: profileError } = await pool.query(createUserProfileQuery, [data.user.id, firstName, lastName, phoneNumber, address, gender]);
 
-        return res.status(200).json({ "status": "success", "message": "Dealer agent request created successfully" });
+        if (profileError) {
+            await supabase.auth.api.deleteUser(data.user.id);
+            return res.status(500).json({ error: 'Error creating user profile' });
+        }
+
+        const createDealerApplicantQuery = `
+            INSERT INTO tblDealershipAgentApplicant (userId, dealershipId) VALUES ($1, $2)
+        `
+
+        const { error: dealershipAgentApplicantError } = await pool.query(createDealerApplicantQuery, [data.user.id, dealership.id]);
+
+        if (dealershipAgentApplicantError) {
+            await supabase.auth.api.deleteUser(data.user.id);
+            return res.status(500).json({ error: 'Error creating dealer agent application' });
+        }
+
+        return res.status(201).json({ message: "Successfully registered" });
     } catch (error) {
-        console.error('Error registering user:', error);
-        res.status(500).send(error);
+        console.log(error);
+        return res.status(500).json({ error });
     }
+
 });
 
 const login = asyncHandler(async (req, res) => {
-    try {
-        const requiredFields = ['email', 'password', 'loginType'];
+    const { email, password } = req.body;
 
-        validateRequiredFields(requiredFields, req.body, res);
+    let { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+    })
 
-        const { email, password, loginType } = req.body;
 
-        if (loginType != "dealer" && loginType != "buyer" && loginType != "admin") return res.status(400).json({ "message": "invalid login type" });
-
-        let col;
-        switch (loginType) {
-            case "dealer":
-            case "buyer":
-                col = usersCol
-                break;
-            case "admin":
-                col = adminCol;
-                break;
-        }
-
-        let user = await queryDatabase(col, where("email", '==', email), "Invalid email or password");
-
-        if (user.error) {
-            return res.status(400).json({ "message": "Invalid email or password" });
-        }
-        user = user[0]
-
-        const passwordMatch = await bcrypt.compare(password, user.password);
-        if (!passwordMatch) {
-            return res.status(400).json({ "message": "Invalid email or password" });
-        }
-
-        let { id, email: fetchedEmail, firstname, lastname, privilege } = user;
-        if (loginType == "admin") privilege = "admin";
-
-        const token = jwt.sign(
-            { id, email: fetchedEmail, firstname, lastname, privilege },
-            process.env.JWT_SECRET,
-            { expiresIn: 86400 }
-        );
-
-        res.cookie('jwt', token, {
-            path: '/',
-            domain: '',
-            sameSite: 'None',
-            secure: true
-        });
-
-        res.status(200).json({
-            user: {
-                id,
-                email: fetchedEmail,
-                firstname,
-                lastname,
-                privilege,
-                token
-            }
-        });
-    } catch (error) {
-        console.error("Error:", error);
-        return res.status(500).send("Internal Server Error");
+    if (error || !data) {
+        return res.status(401).json({ error: 'Invalid email or password' });
     }
+
+    let query = `SELECT * FROM tblUserProfile where userid =$1`;
+    const user = (await pool.query(query, [data.user.id])).rows[0];
+
+    const token = jwt.sign(
+        user,
+        process.env.JWT_SECRET,
+        { expiresIn: 86400 }
+    );
+
+    res.cookie('jwt', token, {
+        path: '/',
+        domain: '',
+        sameSite: 'None',
+        secure: true
+    });
+
+    res.status(200).json({
+        user,
+        token
+    });
 });
 
-const updateBuyerUserProfile = asyncHandler(async (req, res) => {
-    const { firstName, lastName, email, phoneNumber, gender, address } = req.body;
-    const newData = {};
-    if (firstName)
-        newData.firstname = firstName
-    if (lastName)
-        newData.lastName = lastName
-    if (email)
-        newData.email = email
-    if (phoneNumber)
-        newData.phoneNumber = phoneNumber
-    if (gender)
-        newData.gender = gender
-    if (address)
-        newData.address = address
+
+const getUserProfile = asyncHandler(async (req, res) => {
+    try {
+        const requiredFields = ['userId']
+        validateRequiredFields(requiredFields, req.query, res);
+
+        const { userId } = req.query;
+
+        let query = "SELECT * from tblUserProfile WHERE userid = $1"
+        let user = (await pool.query(query, [userId])).rows[0];
+        if (!user)
+            return res.status(404).json({ message: "User not found" })
+
+        const { role, ...updatedUser } = user;
+
+        return res.status(200).json(updatedUser)
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ error });
+    }
 })
 
-const updateDealerAgentUserProfile = asyncHandler(async (req, res) => {
-    const { firstName, lastName, email, phoneNumber, gender, address } = req.body;
-    const newData = {};
-    if (firstName)
-        newData.firstname = firstName
-    if (lastName)
-        newData.lastName = lastName
-    if (email)
-        newData.email = email
-    if (phoneNumber)
-        newData.phoneNumber = phoneNumber
-    if (gender)
-        newData.gender = gender
-    if (address)
-        newData.address = address
+const updateUserProfile = asyncHandler(async (req, res) => {
+    try {
+        const updateFields = ['firstName', 'lastName', 'phoneNumber', 'address', 'gender'];
+        const updates = {};
+
+        updateFields.forEach(field => {
+            if (req.body[field]) {
+                updates[field] = req.body[field];
+            }
+        });
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ error: 'No fields to update' });
+        }
+
+        const updateValues = Object.values(updates);
+        const updatePlaceholders = Object.keys(updates).map((_, index) => `$${index + 1}`);
+
+        const updateUserProfileQuery = `
+            UPDATE tblUserProfile 
+            SET ${Object.keys(updates).map((key, index) => `${key} = ${updatePlaceholders[index]}`).join(', ')}
+            WHERE userid = $${Object.keys(updates).length + 1}
+            RETURNING *;
+        `;
+
+
+        const { rows: userProfile, error: profileError } = await pool.query(updateUserProfileQuery, [...updateValues, req.tokenData.userid]);
+
+        if (profileError) {
+            await supabase.auth.update({
+                id: req.user.id,
+                email: req.user.email
+            });
+            return res.status(500).json({ error: 'Error updating user profile' });
+        }
+
+        return res.status(200).json({ message: 'User profile updated successfully' });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
 })
 
 //LISTING
@@ -209,25 +235,16 @@ const createListing = asyncHandler(async (req, res) => {
             contentType: req.file.mimetype
         }
 
-        const dealerAgentQueryResult = await queryDatabase(usersCol, where(documentId(), '==', req.tokenData.id), "Dealer Agent not found");
-        const dealerAgent = dealerAgentQueryResult[0];
-        delete dealerAgent.password
-        delete dealerAgent.dealershipName
-        delete dealerAgent.privilege
 
         const dealershipQueryResult = await queryDatabase(dealershipCol, where('name', '==', dealershipName), "Dealership not found");
         const dealership = dealershipQueryResult[0];
-
-        delete dealership.dealershipName;
-        delete dealership.privilege;
-        delete dealership.password;
 
         const storageRef = ref(storage, `listing/${req.file.originalname + "" + new Date()}`);
         const snapshot = await uploadBytesResumable(storageRef, req.file.buffer, metadata)
         const imageURL = await getDownloadURL(snapshot.ref);
 
         const newListingRef = await addDoc(listingCol, {
-            modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, imageURL, dealerAgent: dealerAgent, dealership: dealership
+            modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, imageURL, dealerAgent: req.tokenData.id, dealershipId: dealership.id
         });
 
         // const newListingDoc = await getDoc(newListingRef);
@@ -239,19 +256,54 @@ const createListing = asyncHandler(async (req, res) => {
     }
 })
 
-//todo more dynamic filter
+//TODO more dynamic filter
 const getListing = asyncHandler(async (req, res) => {
     try {
-        const { listingId, dealershipName, dealerAgentId } = req.query;
+        const { listingId, dealershipId, dealerAgentId } = req.query;
 
         if (listingId) {
-            const listing = await queryDatabase(listingCol, where(documentId(), '==', listingId), "Listings not found");
-            return res.status(200).json(listing[0]);
+            const listing = (await queryDatabase(listingCol, where(documentId(), '==', listingId), "Listing not found"))[0];
+
+            const dealership = (await queryDatabase(dealershipCol, where(documentId(), '==', listing.dealershipId)))[0];
+            const dealerAgent = (await queryDatabase(usersCol, where(documentId(), '==', listing.dealerAgentId)))[0];
+
+            listing.dealership = dealership;
+            listing.dealerAgent = dealerAgent;
+
+            delete listing.dealershipId
+            delete listing.dealerAgentId
+
+            return res.status(200).json(listing);
         }
 
-        if (dealershipName) {
-            const listings = await queryDatabase(listingCol, where("dealership.name", '==', dealershipName), "Listings or dealership not found");
-            console.log(listings)
+        if (dealershipId) {
+            let listings = await queryDatabase(listingCol, where("dealershipId", '==', dealershipId), "Listings or dealership not found");
+
+            const dealerAgentIds = listings.map(listing => listing.dealerAgentId);
+            const dealerAgents = await queryDatabase(usersCol, where(documentId(), 'in', dealerAgentIds), "");
+
+            const dealership = (await queryDatabase(dealershipCol, where(documentId(), '==', dealershipId), ""))[0];
+
+            listings = listings.map(listing => {
+                const dealerAgent = dealerAgents.find(agent => agent.id === listing.dealerAgentId);
+
+                delete dealerAgent.privilege;
+                delete dealerAgent.dealershipName;
+
+                delete listing.dealershipId;
+                delete listing.dealerAgentId;
+
+                return {
+                    ...listing,
+                    dealership: {
+                        ...dealership
+                    },
+                    dealer: {
+                        ...dealerAgent
+                    }
+                };
+            });
+
             return res.status(200).json(listings);
         }
 
@@ -263,11 +315,25 @@ const getListing = asyncHandler(async (req, res) => {
     }
 })
 
-const getDealerShip = asyncHandler(async (req, res) => {
+const getDealership = asyncHandler(async (req, res) => {
     const { dealershipName, dealershipId } = req.query;
 
     if (dealershipName) {
-        const dealershipQueryResult = await queryDatabase(dealershipCol, where('name', '==', dealershipName), "Dealership not found");
+        const normalizedQuery = dealershipName
+        const startAt = normalizedQuery;
+        const endAt = normalizedQuery + '\uf8ff';
+
+        const snapshot = await getDocs(query(
+            dealershipCol,
+            where('name', '>=', startAt),
+            where('name', '<=', endAt)
+        ));
+
+        const dealershipQueryResult = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
         return res.status(200).json(dealershipQueryResult);
     }
 
@@ -304,7 +370,6 @@ const deleteListing = asyncHandler(async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 });
-
 
 
 const requestDealershipManagerPrivilege = asyncHandler(async (req, res) => {
@@ -382,13 +447,17 @@ module.exports = {
     buyerRegister,
     dealerRegister,
     login,
-    updateBuyerUserProfile,
-    updateDealerAgentUserProfile,
+    getUserProfile,
+
+    updateUserProfile,
+
+    // updateBuyerUserProfile,
+    // updateDealerAgentUserProfile,
 
 
     createListing,
     deleteListing,
-    getDealerShip,
+    getDealership,
 
     requestDealershipManagerPrivilege,
 

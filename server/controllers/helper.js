@@ -16,13 +16,16 @@ async function queryDatabase(collectionRef, condition, errorMessage) {
         if (querySnapshot.empty) {
             return { error: errorMessage };
         }
+
         const data = querySnapshot.docs.map(doc => {
             const id = doc.id;
             const documentData = doc.data();
-            return { id, ...documentData };
+
+            const { password, ...filteredData } = documentData;
+
+            return { id, ...filteredData };
         });
         return data;
-
     } catch (error) {
         console.error("Error querying Firestore collection:", error);
         return { error: "Internal server error" };

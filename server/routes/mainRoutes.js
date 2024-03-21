@@ -7,15 +7,20 @@ const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
 
 const {
-    verifyDealerAgentToken,
+    verifyDealershipAgentToken,
     verifyBuyerToken,
-    verifyAdminToken
+    verifyAdminToken,
+    verifyRole
 } = require("../controllers/middlewares")
 
 const {
     buyerRegister,
     dealerRegister,
     login,
+
+    getUserProfile,
+
+    updateUserProfile,
 
     createListing,
     deleteListing,
@@ -27,23 +32,40 @@ const {
     getUsers,
     getUser,
     updateUserPrivilege,
-    getDealerShip,
+    getDealership,
+
+    // updateBuyerUserProfile,
+    // updateDealerAgentUserProfile,
 } = require("../controllers/mainController");
 
 
 router.route("/").get(getUsers);
 
+//REGISTER
 router.route("/buyer/register").post(buyerRegister);
 router.route("/dealer/register").post(dealerRegister);
-router.route("/user/login").post(login);
-router.route("/dealer/list").post(upload.single("image"), verifyDealerAgentToken, createListing);
-router.route("/dealer/list").delete(verifyDealerAgentToken, deleteListing);
 
-router.route("/dealership").get(getDealerShip);
+//LOGIN
+router.route("/user/login").post(login);
+
+//GET PROFILE
+router.route("/user/profile").get(getUserProfile);
+
+//UPDATE PROFILE
+router.route("/user/profile").put(verifyRole, updateUserProfile);
+
+
+
+
+
+router.route("/dealer/list").post(upload.single("image"), verifyDealershipAgentToken, createListing);
+router.route("/dealer/list").delete(verifyDealershipAgentToken, deleteListing);
+
+router.route("/dealership").get(getDealership);
 
 router.route("/listing").get(getListing);
 
-router.route("/request/1").post(verifyDealerAgentToken, requestDealershipManagerPrivilege);
+router.route("/request/1").post(verifyDealershipAgentToken, requestDealershipManagerPrivilege);
 
 router.route("/admin/users/update").put(verifyAdminToken, updateUserPrivilege);
 

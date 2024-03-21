@@ -1,7 +1,6 @@
 const jwt = require("jsonwebtoken");
-// const { queryDatabase } = require("./your-database-module"); // Import your database module
 
-const verifyToken = async (req, res, next, privilege) => {
+const verifyToken = async (req, res, next, privileges) => {
     const token = req.cookies.jwt;
 
     if (!token) {
@@ -19,7 +18,7 @@ const verifyToken = async (req, res, next, privilege) => {
         // }
 
         const payload = jwt.verify(token, process.env.JWT_SECRET);
-        if (payload.privilege !== privilege) {
+        if (!privileges.includes(payload.role)) {
             return res.status(401).send("Unauthorized");
         }
         req.tokenData = payload;
@@ -30,20 +29,29 @@ const verifyToken = async (req, res, next, privilege) => {
     }
 };
 
-const verifyDealerAgentToken = async (req, res, next) => {
-    await verifyToken(req, res, next, "dealerAgent");
+const verifyDealershipAgentToken = async (req, res, next) => {
+    await verifyToken(req, res, next, ["dealershipAgent", "dealershipAgentApplicant"]);
+};
+
+const verifyDealerManagerToken = async (req, res, next) => {
+    await verifyToken(req, res, next, ["dealerManager"]);
 };
 
 const verifyBuyerToken = async (req, res, next) => {
-    await verifyToken(req, res, next, "buyer");
+    await verifyToken(req, res, next, ["buyer"]);
 };
 
 const verifyAdminToken = async (req, res, next) => {
-    await verifyToken(req, res, next, "admin");
-}
+    await verifyToken(req, res, next, ["admin"]);
+};
+const verifyRole = async (req, res, next) => {
+    await verifyToken(req, res, next, ["buyer", "dealershipAgent", "dealershipManager", "admin"]);
+};
 
 module.exports = {
-    verifyDealerAgentToken,
+    verifyDealershipAgentToken,
+    verifyDealerManagerToken,
     verifyBuyerToken,
-    verifyAdminToken
+    verifyAdminToken,
+    verifyRole
 };
