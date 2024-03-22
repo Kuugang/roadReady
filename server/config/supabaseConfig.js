@@ -40,6 +40,7 @@ const initializeDatabase = async () => {
 
         await pool.query(createRoleType);
         await pool.query(createGenderType);
+        await pool.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
 
         let createUserProfileTable = `CREATE TABLE IF NOT EXISTS tblUserProfile(
             id SERIAL PRIMARY KEY,
@@ -55,15 +56,26 @@ const initializeDatabase = async () => {
 
         await pool.query(createUserProfileTable);
 
+
         let createDealershipTable = `CREATE TABLE IF NOT EXISTS tblDealership(
-            id SERIAL PRIMARY KEY,
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
             name VARCHAR(255) NOT NULL,
             manager VARCHAR,
             latitude DECIMAL(9, 6) NOT NULL,
             longitude DECIMAL(9, 6) NOT NULL,
             address VARCHAR(255) NOT NULL,
-            FOREIGN KEY (manager) REFERENCES tblUserProfile(userId)
+            FOREIGN KEY(manager) REFERENCES tblUserProfile(userId)
         )`;
+
+        // let createDealershipTable = `CREATE TABLE IF NOT EXISTS tblDealership(
+        //     id SERIAL PRIMARY KEY,
+        //     name VARCHAR(255) NOT NULL,
+        //     manager VARCHAR,
+        //     latitude DECIMAL(9, 6) NOT NULL,
+        //     longitude DECIMAL(9, 6) NOT NULL,
+        //     address VARCHAR(255) NOT NULL,
+        //     FOREIGN KEY (manager) REFERENCES tblUserProfile(userId)
+        // )`;
 
         await pool.query(createDealershipTable);
 

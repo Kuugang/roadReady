@@ -54,14 +54,13 @@ router.route("/user/profile").get(getUserProfile);
 //UPDATE PROFILE
 router.route("/user/profile").put(verifyRole, updateUserProfile);
 
-
+router.route("/dealership").get(getDealership);
 
 
 
 router.route("/dealer/list").post(upload.single("image"), verifyDealershipAgentToken, createListing);
 router.route("/dealer/list").delete(verifyDealershipAgentToken, deleteListing);
 
-router.route("/dealership").get(getDealership);
 
 router.route("/listing").get(getListing);
 

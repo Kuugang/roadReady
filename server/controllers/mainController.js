@@ -138,11 +138,13 @@ const login = asyncHandler(async (req, res) => {
         secure: true
     });
 
-    res.status(200).json({
+    res.status(200).json(
         user,
         token
-    });
+    );
 });
+
+
 
 
 const getUserProfile = asyncHandler(async (req, res) => {
@@ -222,8 +224,8 @@ const createListing = asyncHandler(async (req, res) => {
         //upload image
         const metadata = {
             contentType: req.file.mimetype
-        }
 
+        }
 
         const dealershipQueryResult = await queryDatabase(dealershipCol, where('name', '==', dealershipName), "Dealership not found");
         const dealership = dealershipQueryResult[0];
@@ -308,30 +310,36 @@ const getDealership = asyncHandler(async (req, res) => {
     const { dealershipName, dealershipId } = req.query;
 
     if (dealershipName) {
-        const normalizedQuery = dealershipName
-        const startAt = normalizedQuery;
-        const endAt = normalizedQuery + '\uf8ff';
-
-        const snapshot = await getDocs(query(
-            dealershipCol,
-            where('name', '>=', startAt),
-            where('name', '<=', endAt)
-        ));
-
-        const dealershipQueryResult = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-
-        return res.status(200).json(dealershipQueryResult);
+        const filter = `%${dealershipName.toLowerCase()}%`;
+        let query = `SELECT * FROM tblDealership WHERE LOWER(name) LIKE $1`;
+        const dealerships = (await pool.query(query, [filter])).rows;
+        return res.status(200).json(dealerships);
     }
 
     if (dealershipId) {
-        const dealershipQueryResult = await queryDatabase(dealershipCol, where(documentId(), '==', dealershipId), "Dealership not found");
-        return res.status(200).json(dealershipQueryResult[0]);
-    }
+        let query = `
+        SELECT d.*, 
+            m AS manager
+        FROM tblDealership d
+        LEFT JOIN tblUserProfile m ON d.manager = m.userId
+        WHERE d.id = $1`;
 
-    const dealerships = await queryDatabase(dealershipCol, "", "Dealership not found");
+        const result = (await pool.query(query, [dealershipId])).rows[0];
+
+        console.log(result);
+        const managerParts = result.manager.split(',');
+        result.manager = {
+            userId: managerParts[1].trim(),
+            firstname: managerParts[2].trim(),
+            lastName: managerParts[3].trim(),
+            phoneNumber: managerParts[4].trim()
+        };
+
+        return res.status(200).json(result);
+
+    }
+    let query = "SELECT * FROM tblDealership";
+    const dealerships = (await pool.query(query)).rows;
     return res.status(200).json(dealerships);
 })
 
@@ -440,13 +448,15 @@ module.exports = {
 
     updateUserProfile,
 
+    getDealership,
+
+
     // updateBuyerUserProfile,
     // updateDealerAgentUserProfile,
 
 
     createListing,
     deleteListing,
-    getDealership,
 
     requestDealershipManagerPrivilege,
 
