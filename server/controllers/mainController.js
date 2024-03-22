@@ -1,9 +1,10 @@
+const { v4: uuidv4 } = require('uuid');
 const { db } = require("../config/dbConfig");
 const { supabase, pool } = require("../config/supabaseConfig")
 const asyncHandler = require("express-async-handler");
 
 
-const { collection, documentId, getDocs, getDoc, doc, query, where, addDoc, deleteDoc, updateDoc } = require("firebase/firestore/lite")
+const { collection, documentId, getDocs, getDoc, doc, query, where, addDoc, deleteDoc, updateDoc, queryEqual } = require("firebase/firestore/lite")
 
 
 const { getStorage, ref, getDownloadURL, uploadBytesResumable } = require("firebase/storage")
@@ -138,10 +139,10 @@ const login = asyncHandler(async (req, res) => {
         secure: true
     });
 
-    res.status(200).json(
+    return res.status(200).json({
         user,
         token
-    );
+    });
 });
 
 
@@ -215,31 +216,45 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 
 const createListing = asyncHandler(async (req, res) => {
     try {
-        const requiredFields = ['modelAndName', 'make', 'fuelType', 'power', 'transmission', 'engine', 'fuelTankCapacity', 'seatingCapacity', 'price', 'dealershipName'];
+        const requiredFields = ['modelAndName', 'make', 'fuelType', 'power', 'transmission', 'engine', 'fuelTankCapacity', 'seatingCapacity', 'price', 'dealershipName', 'vehicleType'];
 
         validateRequiredFields(requiredFields, req.body, res);
 
-        const { modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, dealershipName } = req.body;
+        const { modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, dealershipName, vehicleType } = req.body;
 
-        //upload image
-        const metadata = {
+        let query = "SELECT * FROM tblDealership WHERE name = $1"
+        const dealership = (await pool.query(query, [dealershipName])).rows[0];
+        if (!dealership)
+            return res.status(404).json({ message: "Dealership not found" });
+
+        const { data, error } = await supabase.storage.from('listing').upload(uuidv4(), req.file.buffer, {
             contentType: req.file.mimetype
-
-        }
-
-        const dealershipQueryResult = await queryDatabase(dealershipCol, where('name', '==', dealershipName), "Dealership not found");
-        const dealership = dealershipQueryResult[0];
-
-        const storageRef = ref(storage, `listing/${req.file.originalname + "" + new Date()}`);
-        const snapshot = await uploadBytesResumable(storageRef, req.file.buffer, metadata)
-        const imageURL = await getDownloadURL(snapshot.ref);
-
-        const newListingRef = await addDoc(listingCol, {
-            modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, imageURL, dealerAgent: req.tokenData.id, dealershipId: dealership.id
         });
 
-        // const newListingDoc = await getDoc(newListingRef);
-        // const newListing = newListingDoc.data();
+        if (error) {
+            return res.status(500).json({ success: false, error: error.message });
+        }
+
+        const imageURL = `https://xjrhebmomygxcafbvlye.supabase.co/storage/v1/object/public/` + data.fullPath;
+        // modelAndName VARCHAR(255) NOT NULL,
+        // make VARCHAR(255) NOT NULL,
+        // fuelType VARCHAR(255) NOT NULL,
+        // power VARCHAR(255) NOT NULL,
+        // transmission VARCHAR(255) NOT NULL,
+        // engine VARCHAR(255) NOT NULL,
+        // fuelTankCapacity VARCHAR(255) NOT NULL,
+        // seatingCapacity VARCHAR(255) NOT NULL,
+        // price INT NOT NULL,
+        // vehicleType VARCHAR(255) NOT NULL,
+        // image VARCHAR(255) NOT NULL,
+        // dealership UUID,
+        // dealershipAgent VARCHAR,
+        query = "INSERT INTO tblListing (modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, vehicleType, image, dealership, dealershipAgent) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *";
+
+        let newListing = (await pool.query(query, [modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, vehicleType, imageURL, dealership.id, req.tokenData.userid]));
+
+        // console.log(newListing)
+
         return res.status(200).json({ "message": "Successfully listed vehicle" });
     } catch (error) {
         console.error("Error:", error);
@@ -334,9 +349,7 @@ const getDealership = asyncHandler(async (req, res) => {
             lastName: managerParts[3].trim(),
             phoneNumber: managerParts[4].trim()
         };
-
         return res.status(200).json(result);
-
     }
     let query = "SELECT * FROM tblDealership";
     const dealerships = (await pool.query(query)).rows;

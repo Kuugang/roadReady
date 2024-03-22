@@ -66,21 +66,31 @@ const initializeDatabase = async () => {
             address VARCHAR(255) NOT NULL,
             FOREIGN KEY(manager) REFERENCES tblUserProfile(userId)
         )`;
-
-        // let createDealershipTable = `CREATE TABLE IF NOT EXISTS tblDealership(
-        //     id SERIAL PRIMARY KEY,
-        //     name VARCHAR(255) NOT NULL,
-        //     manager VARCHAR,
-        //     latitude DECIMAL(9, 6) NOT NULL,
-        //     longitude DECIMAL(9, 6) NOT NULL,
-        //     address VARCHAR(255) NOT NULL,
-        //     FOREIGN KEY (manager) REFERENCES tblUserProfile(userId)
-        // )`;
-
         await pool.query(createDealershipTable);
 
-        console.log("Connected to postgres database")
+        let createListingTable = `CREATE TABLE IF NOT EXISTS tblListing(
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            modelAndName VARCHAR(255) NOT NULL,
+            make VARCHAR(255) NOT NULL,
+            fuelType VARCHAR(255) NOT NULL,
+            power VARCHAR(255) NOT NULL,
+            transmission VARCHAR(255) NOT NULL,
+            engine VARCHAR(255) NOT NULL,
+            fuelTankCapacity VARCHAR(255) NOT NULL,
+            seatingCapacity VARCHAR(255) NOT NULL,
+            price INT NOT NULL,
+            vehicleType VARCHAR(255) NOT NULL,
+            image VARCHAR(255) NOT NULL,
+            dealership UUID,
+            dealershipAgent VARCHAR,
 
+            FOREIGN KEY (dealership) REFERENCES tblDealership(id),
+            FOREIGN KEY (dealershipAgent) REFERENCES tblUserProfile(userId)
+        );`
+
+        await pool.query(createListingTable);
+
+        console.log("Connected to postgres database")
     } catch (e) {
         console.log("Failed to connect to supabase", e);
     }
