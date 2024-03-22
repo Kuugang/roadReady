@@ -57,7 +57,7 @@ const buyerRegister = asyncHandler(async (req, res) => {
         return res.status(201).json({ message: "Successfully registered" });
     } catch (error) {
         console.log(error);
-        return res.status(500).json({ error });
+        return res.status(500).json(error);
     }
 });
 
@@ -99,17 +99,6 @@ const dealerRegister = asyncHandler(async (req, res) => {
         if (profileError) {
             await supabase.auth.api.deleteUser(data.user.id);
             return res.status(500).json({ error: 'Error creating user profile' });
-        }
-
-        const createDealerApplicantQuery = `
-            INSERT INTO tblDealershipAgentApplicant (userId, dealershipId) VALUES ($1, $2)
-        `
-
-        const { error: dealershipAgentApplicantError } = await pool.query(createDealerApplicantQuery, [data.user.id, dealership.id]);
-
-        if (dealershipAgentApplicantError) {
-            await supabase.auth.api.deleteUser(data.user.id);
-            return res.status(500).json({ error: 'Error creating dealer agent application' });
         }
 
         return res.status(201).json({ message: "Successfully registered" });

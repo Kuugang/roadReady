@@ -6,23 +6,17 @@ let pool;
 
 const initializeDatabase = async () => {
     try {
-        const supabaseUrl = 'https://xjrhebmomygxcafbvlye.supabase.co'
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqcmhlYm1vbXlneGNhZmJ2bHllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTA5NzkxNTUsImV4cCI6MjAyNjU1NTE1NX0.SmMkxD8GudmadPL5Lt83JwskZhszbDa4q6_WpbFUgdQ'
-        supabase = createClient(supabaseUrl, supabaseKey)
+        supabase = createClient(process.env.supabaseURL, process.env.supabaseKey)
         console.log("Connected to supabase")
 
-
-        const host = "aws-0-ap-southeast-1.pooler.supabase.com"
         const databaseName = "postgres"
         const port = 5432
-        const user = "postgres.xjrhebmomygxcafbvlye"
-        const password = process.env.databasePassword
 
         pool = new Pool({
-            user: user,
-            host: host,
+            user: process.env.user,
+            host: process.env.host,
             database: databaseName,
-            password: password,
+            password: process.env.databasePassword,
             port: port,
         });
 
@@ -35,17 +29,27 @@ const initializeDatabase = async () => {
         END $$;
         `;
 
+        const createRoleType = `
+        DO $$ 
+        BEGIN 
+            IF NOT EXISTS(SELECT 1 FROM pg_type WHERE typname = 'role') THEN
+                CREATE TYPE role AS ENUM('admin', 'buyer', 'dealershipManager', 'dealershipAgent', 'dealershipAgentApplicant', 'bankAgent');
+            END IF;
+        END $$;
+        `;
+
+        await pool.query(createRoleType);
         await pool.query(createGenderType);
 
         let createUserProfileTable = `CREATE TABLE IF NOT EXISTS tblUserProfile(
             id SERIAL PRIMARY KEY,
-            userId VARCHAR,
-            firstName VARCHAR(50), 
-            lastName VARCHAR(50), 
+            userId VARCHAR NOT NULL,
+            firstName VARCHAR(50) NOT NULL, 
+            lastName VARCHAR(50) NOT NULL, 
             phoneNumber VARCHAR(50),
             address VARCHAR(255),
             gender gender,
-            role VARCHAR,
+            role role NOT NULL,
             CONSTRAINT unique_userId UNIQUE (userId)
         )`;
 
@@ -53,25 +57,16 @@ const initializeDatabase = async () => {
 
         let createDealershipTable = `CREATE TABLE IF NOT EXISTS tblDealership(
             id SERIAL PRIMARY KEY,
-            name VARCHAR(255),
+            name VARCHAR(255) NOT NULL,
             manager VARCHAR,
-            latitude DECIMAL(9, 6),
-            longitude DECIMAL(9, 6),
-            address VARCHAR(255),
+            latitude DECIMAL(9, 6) NOT NULL,
+            longitude DECIMAL(9, 6) NOT NULL,
+            address VARCHAR(255) NOT NULL,
             FOREIGN KEY (manager) REFERENCES tblUserProfile(userId)
         )`;
 
         await pool.query(createDealershipTable);
 
-        let createDealerAgentApplicantTable = `CREATE TABLE IF NOT EXISTS tblDealershipAgentApplicant(
-            id SERIAL PRIMARY KEY,
-            userId VARCHAR NOT NULL,
-            dealershipId INT NOT NULL,
-            FOREIGN KEY (userId) REFERENCES tblUserProfile(userId) ON DELETE CASCADE,
-            FOREIGN KEY (dealershipId) REFERENCES tblDealership(id) ON DELETE CASCADE
-        )`;
-
-        await pool.query(createDealerAgentApplicantTable);
         console.log("Connected to postgres database")
 
     } catch (e) {
