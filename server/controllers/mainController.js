@@ -45,7 +45,7 @@ const buyerRegister = asyncHandler(async (req, res) => {
         INSERT INTO tblUserProfile (userid, firstname, lastname, phonenumber, address, gender, role)
         VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
         RETURNING *;
-    `;
+        `;
 
         const { rows: userProfile, error: profileError } = await pool.query(createUserProfileQuery, [data.user.id, firstName, lastName, phoneNumber, address, gender]);
 
