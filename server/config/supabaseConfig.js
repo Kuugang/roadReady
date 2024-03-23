@@ -33,7 +33,7 @@ const initializeDatabase = async () => {
         DO $$ 
         BEGIN 
             IF NOT EXISTS(SELECT 1 FROM pg_type WHERE typname = 'role') THEN
-                CREATE TYPE role AS ENUM('admin', 'buyer', 'dealershipManager', 'dealershipAgent', 'dealershipAgentApplicant', 'bankAgent');
+                CREATE TYPE role AS ENUM('admin', 'buyer', 'dealershipManager', 'dealershipAgent', 'bankAgent');
             END IF;
         END $$;
         `;
@@ -43,30 +43,50 @@ const initializeDatabase = async () => {
         await pool.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
 
         let createUserProfileTable = `CREATE TABLE IF NOT EXISTS tblUserProfile(
-            id SERIAL PRIMARY KEY,
-            userId VARCHAR NOT NULL,
+            id UUID PRIMARY KEY,
             firstName VARCHAR(50) NOT NULL, 
             lastName VARCHAR(50) NOT NULL, 
             phoneNumber VARCHAR(50),
             address VARCHAR(255),
             gender gender,
             role role NOT NULL,
-            CONSTRAINT unique_userId UNIQUE (userId)
+
+            createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMPTZ
         )`;
 
         await pool.query(createUserProfileTable);
 
-
         let createDealershipTable = `CREATE TABLE IF NOT EXISTS tblDealership(
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
             name VARCHAR(255) NOT NULL,
-            manager VARCHAR,
+            manager UUID,
             latitude DECIMAL(9, 6) NOT NULL,
             longitude DECIMAL(9, 6) NOT NULL,
             address VARCHAR(255) NOT NULL,
-            FOREIGN KEY(manager) REFERENCES tblUserProfile(userId)
+
+            createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMPTZ,
+
+            FOREIGN KEY(manager) REFERENCES tblUserProfile(id)
         )`;
+
         await pool.query(createDealershipTable);
+
+        let createDealershipAgentTable = `CREATE TABLE IF NOT EXISTS tblDealershipAgent(
+            userId UUID PRIMARY KEY,
+            dealership UUID NOT NULL,
+            isAuthorized BOOL DEFAULT FALSE,
+
+            createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMPTZ,
+
+            FOREIGN KEY(userId) REFERENCES tblUserProfile(id),
+            FOREIGN KEY(dealership) REFERENCES tblDealership(id)
+        )`;
+
+        await pool.query(createDealershipAgentTable);
+
 
         let createListingTable = `CREATE TABLE IF NOT EXISTS tblListing(
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -82,10 +102,13 @@ const initializeDatabase = async () => {
             vehicleType VARCHAR(255) NOT NULL,
             image VARCHAR(255) NOT NULL,
             dealership UUID,
-            dealershipAgent VARCHAR,
+            dealershipAgent UUID,
+
+            createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMPTZ,
 
             FOREIGN KEY (dealership) REFERENCES tblDealership(id),
-            FOREIGN KEY (dealershipAgent) REFERENCES tblUserProfile(userId)
+            FOREIGN KEY (dealershipAgent) REFERENCES tblUserProfile(id)
         );`
 
         await pool.query(createListingTable);

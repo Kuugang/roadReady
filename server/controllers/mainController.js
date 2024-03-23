@@ -43,7 +43,7 @@ const buyerRegister = asyncHandler(async (req, res) => {
         }
 
         const createUserProfileQuery = `
-        INSERT INTO tblUserProfile (userid, firstname, lastname, phonenumber, address, gender, role)
+        INSERT INTO tblUserProfile (id, firstname, lastname, phonenumber, address, gender, role)
         VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
         RETURNING *;
         `;
@@ -74,8 +74,6 @@ const dealerRegister = asyncHandler(async (req, res) => {
 
         const dealership = (await pool.query(query, [dealershipName])).rows[0];
 
-        console.log(dealership)
-
         if (!dealership) {
             return res.status(400).json({ error: 'Dealership not found' });
         }
@@ -90,14 +88,17 @@ const dealerRegister = asyncHandler(async (req, res) => {
         }
 
         const createUserProfileQuery = `
-            INSERT INTO tblUserProfile(userid, firstname, lastname, phonenumber, address, gender, role)
-            VALUES ($1, $2, $3, $4, $5, $6, 'dealershipAgentApplicant')
+            INSERT INTO tblUserProfile(id, firstname, lastname, phonenumber, address, gender, role)
+            VALUES ($1, $2, $3, $4, $5, $6, 'dealershipAgent')
             RETURNING *;
         `;
 
         const { rows: userProfile, error: profileError } = await pool.query(createUserProfileQuery, [data.user.id, firstName, lastName, phoneNumber, address, gender]);
 
-        if (profileError) {
+        const createDealershipAgent = `INSERT INTO tblDealershipAgent (userid, dealership) VALUES ($1, $2)`
+        const { rows: dealershipAgent, error: dealershipAgentErorr } = await pool.query(createDealershipAgent, [data.user.id, dealership.id]);
+
+        if (profileError || dealershipAgentErorr) {
             await supabase.auth.api.deleteUser(data.user.id);
             return res.status(500).json({ error: 'Error creating user profile' });
         }
@@ -117,7 +118,6 @@ const login = asyncHandler(async (req, res) => {
         email: email,
         password: password
     })
-
 
     if (error || !data) {
         return res.status(401).json({ error: 'Invalid email or password' });
@@ -139,10 +139,8 @@ const login = asyncHandler(async (req, res) => {
         secure: true
     });
 
-    return res.status(200).json({
-        user,
-        token
-    });
+    user.token = token;
+    return res.status(200).json(user);
 });
 
 
@@ -268,52 +266,41 @@ const getListing = asyncHandler(async (req, res) => {
         const { listingId, dealershipId, dealerAgentId } = req.query;
 
         if (listingId) {
-            const listing = (await queryDatabase(listingCol, where(documentId(), '==', listingId), "Listing not found"))[0];
+            let query = `
+            SELECT l.*, 
+                a AS dealershipagent,
+                d AS dealership
+            FROM tblListing l
+            LEFT JOIN tblUserProfile a ON l.dealershipAgent = a.userid
+            LEFT JOIN tblDealership d ON l.dealership = d.id
+            WHERE l.id = $1
+            GROUP BY l.id, a, d`;
 
-            const dealership = (await queryDatabase(dealershipCol, where(documentId(), '==', listing.dealershipId)))[0];
-            const dealerAgent = (await queryDatabase(usersCol, where(documentId(), '==', listing.dealerAgentId)))[0];
+            const result = (await pool.query(query, [listingId])).rows[0];
 
-            listing.dealership = dealership;
-            listing.dealerAgent = dealerAgent;
+            const dealership = result.dealership.split(',');
+            const agent = result.dealershipagent.split(',');
 
-            delete listing.dealershipId
-            delete listing.dealerAgentId
-
-            return res.status(200).json(listing);
+            result.dealership = {
+                dealershipId: dealership[0].trim(),
+                name: dealership[1].trim(),
+                managerId: dealership[2].trim(),
+                address: dealership[5].trim(),
+            }
+            result.dealershipagent = {
+                userId: agent[1].trim(),
+                firstname: agent[2].trim(),
+                lastName: agent[3].trim(),
+                phoneNumber: agent[4].trim()
+            };
+            return res.status(200).json(result);
         }
 
         if (dealershipId) {
-            let listings = await queryDatabase(listingCol, where("dealershipId", '==', dealershipId), "Listings or dealership not found");
-
-            const dealerAgentIds = listings.map(listing => listing.dealerAgentId);
-            const dealerAgents = await queryDatabase(usersCol, where(documentId(), 'in', dealerAgentIds), "");
-
-            const dealership = (await queryDatabase(dealershipCol, where(documentId(), '==', dealershipId), ""))[0];
-
-            listings = listings.map(listing => {
-                const dealerAgent = dealerAgents.find(agent => agent.id === listing.dealerAgentId);
-
-                delete dealerAgent.privilege;
-                delete dealerAgent.dealershipName;
-
-                delete listing.dealershipId;
-                delete listing.dealerAgentId;
-
-                return {
-                    ...listing,
-                    dealership: {
-                        ...dealership
-                    },
-                    dealer: {
-                        ...dealerAgent
-                    }
-                };
-            });
-
-            return res.status(200).json(listings);
         }
 
-        const listings = await queryDatabase(listingCol, query(), "Listings not found");
+        let query = "SELECT * FROM tblListing";
+        const listings = (await pool.query(query)).rows
         return res.status(200).json(listings);
     } catch (error) {
         console.error("Error:", error);

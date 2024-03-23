@@ -59,10 +59,7 @@ router.route("/dealership").get(getDealership);
 router.route("/dealershipAgent/list").post(upload.single("image"), verifyDealershipAgentToken, createListing);
 
 
-
-
 router.route("/dealer/list").delete(verifyDealershipAgentToken, deleteListing);
-
 
 router.route("/listing").get(getListing);
 
