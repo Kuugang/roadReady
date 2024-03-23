@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const { pool } = require("../config/supabaseConfig")
 
 const verifyToken = async (req, res, next, privileges) => {
     const token = req.cookies.jwt;
@@ -18,6 +19,8 @@ const verifyToken = async (req, res, next, privileges) => {
         // }
 
         const payload = jwt.verify(token, process.env.JWT_SECRET);
+
+
         if (!privileges.includes(payload.role)) {
             return res.status(401).send("Unauthorized");
         }
@@ -30,7 +33,7 @@ const verifyToken = async (req, res, next, privileges) => {
 };
 
 const verifyDealershipAgentToken = async (req, res, next) => {
-    await verifyToken(req, res, next, ["dealershipAgent", "dealershipAgentApplicant"]);
+    await verifyToken(req, res, next, ["dealershipAgent"]);
 };
 
 const verifyDealerManagerToken = async (req, res, next) => {

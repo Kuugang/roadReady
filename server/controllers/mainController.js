@@ -144,8 +144,6 @@ const login = asyncHandler(async (req, res) => {
 });
 
 
-
-
 const getUserProfile = asyncHandler(async (req, res) => {
     try {
         const requiredFields = ['userId']
@@ -225,9 +223,16 @@ const createListing = asyncHandler(async (req, res) => {
         if (!dealership)
             return res.status(404).json({ message: "Dealership not found" });
 
+        query = "SELECT * FROM tblDealershipAgent WHERE userid = $1 AND isAuthorized = TRUE AND dealership = $2";
+        const dealer = (await pool.query(query, [req.tokenData.id, dealership.id])).rows[0];
+        if (!dealer) {
+            return res.status(401).send("Unauthorized");
+        }
+
         const { data, error } = await supabase.storage.from('listing').upload(uuidv4(), req.file.buffer, {
             contentType: req.file.mimetype
         });
+
 
         if (error) {
             return res.status(500).json({ success: false, error: error.message });
@@ -249,7 +254,7 @@ const createListing = asyncHandler(async (req, res) => {
         // dealershipAgent VARCHAR,
         query = "INSERT INTO tblListing (modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, vehicleType, image, dealership, dealershipAgent) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *";
 
-        let newListing = (await pool.query(query, [modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, vehicleType, imageURL, dealership.id, req.tokenData.userid]));
+        let newListing = (await pool.query(query, [modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, vehicleType, imageURL, dealership.id, req.tokenData.id]));
 
         // console.log(newListing)
 
@@ -268,35 +273,60 @@ const getListing = asyncHandler(async (req, res) => {
         if (listingId) {
             let query = `
             SELECT l.*, 
-                a AS dealershipagent,
-                d AS dealership
+                a.id AS agentId,
+                a.firstName AS agentFirstName,
+                a.lastName AS agentLastName,
+                a.phoneNumber AS agentPhoneNumber,
+
+                d.name AS dealershipName,
+                d.manager AS dealershipManager,
+                d.latitude AS dealershipLatitude,
+                d.longitude AS dealershipLongitude,
+                d.address AS dealershipAddress
+
             FROM tblListing l
-            LEFT JOIN tblUserProfile a ON l.dealershipAgent = a.userid
+            LEFT JOIN tblUserProfile a ON l.dealershipAgent = a.id
             LEFT JOIN tblDealership d ON l.dealership = d.id
             WHERE l.id = $1
-            GROUP BY l.id, a, d`;
+            GROUP BY l.id, a.id, a.firstName, a.lastName, a.phoneNumber, d.name, d.manager, d.latitude, d.longitude, d.address`;
 
             const result = (await pool.query(query, [listingId])).rows[0];
 
-            const dealership = result.dealership.split(',');
-            const agent = result.dealershipagent.split(',');
+            if (!result) return res.status(404).json({ message: "listing not found" });
 
             result.dealership = {
-                dealershipId: dealership[0].trim(),
-                name: dealership[1].trim(),
-                managerId: dealership[2].trim(),
-                address: dealership[5].trim(),
+                id: result.dealership,
+                name: result.dealershipname,
+                manager: result.dealershipmanager,
+                latitude: result.dealershiplatitude,
+                longitude: result.dealershiplongitude,
+                address: result.dealershipaddress
             }
-            result.dealershipagent = {
-                userId: agent[1].trim(),
-                firstname: agent[2].trim(),
-                lastName: agent[3].trim(),
-                phoneNumber: agent[4].trim()
-            };
+
+            result.agent = {
+                id: result.agentid,
+                firstName: result.agentfirstname,
+                lastName: result.agentlastname,
+                phoneNumber: result.agentphonenumber,
+            }
+            delete result.dealershipagent;
+            delete result.agentid;
+            delete result.agentfirstname;
+            delete result.agentlastname;
+            delete result.agentphonenumber;
+            delete result.dealershipname
+            delete result.dealershipmanager
+            delete result.dealershiplatitude
+            delete result.dealershiplongitude
+            delete result.dealershipaddress
+
             return res.status(200).json(result);
         }
 
         if (dealershipId) {
+            let query = "SELECT * FROM tblListing WHERE dealership = $1";
+            const listings = (await pool.query(query, [dealershipId])).rows;
+            return res.status(200).json(listings);
         }
 
         let query = "SELECT * FROM tblListing";
@@ -321,23 +351,32 @@ const getDealership = asyncHandler(async (req, res) => {
     if (dealershipId) {
         let query = `
         SELECT d.*, 
-            m AS manager
+            m.id AS managerId,
+            m.firstName AS managerFirstName,
+            m.lastName AS managerLastName,
+            m.phoneNumber as managerPhoneNumber
         FROM tblDealership d
-        LEFT JOIN tblUserProfile m ON d.manager = m.userId
+        LEFT JOIN tblUserProfile m ON d.manager = m.id
         WHERE d.id = $1`;
 
         const result = (await pool.query(query, [dealershipId])).rows[0];
+        if (!result) return res.status(404).json({ message: "dealership not found" });
 
-        console.log(result);
-        const managerParts = result.manager.split(',');
         result.manager = {
-            userId: managerParts[1].trim(),
-            firstname: managerParts[2].trim(),
-            lastName: managerParts[3].trim(),
-            phoneNumber: managerParts[4].trim()
-        };
+            id: result.managerid,
+            firstName: result.managerfirstname,
+            lastName: result.managerlastname,
+            phoneNumber: result.managerphonenumber,
+        }
+
+        delete result.managerid
+        delete result.managerfirstname;
+        delete result.managerlastname;
+        delete result.managerphonenumber;
+
         return res.status(200).json(result);
     }
+
     let query = "SELECT * FROM tblDealership";
     const dealerships = (await pool.query(query)).rows;
     return res.status(200).json(dealerships);

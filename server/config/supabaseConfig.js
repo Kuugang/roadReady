@@ -87,7 +87,6 @@ const initializeDatabase = async () => {
 
         await pool.query(createDealershipAgentTable);
 
-
         let createListingTable = `CREATE TABLE IF NOT EXISTS tblListing(
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
             modelAndName VARCHAR(255) NOT NULL,
@@ -101,8 +100,8 @@ const initializeDatabase = async () => {
             price INT NOT NULL,
             vehicleType VARCHAR(255) NOT NULL,
             image VARCHAR(255) NOT NULL,
-            dealership UUID,
-            dealershipAgent UUID,
+            dealership UUID NOT NULL,
+            dealershipAgent UUID NOT NULL,
 
             createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             updatedAt TIMESTAMPTZ,
