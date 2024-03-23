@@ -123,7 +123,7 @@ const login = asyncHandler(async (req, res) => {
         return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    let query = `SELECT * FROM tblUserProfile where userid =$1`;
+    let query = `SELECT * FROM tblUserProfile where id =$1`;
     const user = (await pool.query(query, [data.user.id])).rows[0];
 
     const token = jwt.sign(
