@@ -1,5 +1,5 @@
 import React from "react";
 
 export default function Register() {
-  return <div>register</div>;
+  return <div>Register as chui chu</div>;
 }
