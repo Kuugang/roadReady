@@ -19,23 +19,25 @@ const {
     login,
 
     getUserProfile,
-
     updateUserProfile,
 
     createListing,
     deleteListing,
-
     getListing,
 
-    requestDealershipManagerPrivilege,
+    getDealership,
 
+    createCashApplicationRequest,
+    createInstallmentApplicationRequest,
+    updateApplicationRequest,
+
+
+
+    //wala pani
+    requestDealershipManagerPrivilege,
     getUsers,
     getUser,
     updateUserPrivilege,
-    getDealership,
-
-    // updateBuyerUserProfile,
-    // updateDealerAgentUserProfile,
 } = require("../controllers/mainController");
 
 
@@ -56,9 +58,27 @@ router.route("/user/profile").put(verifyRole, updateUserProfile);
 
 router.route("/dealership").get(getDealership);
 
-router.route("/dealershipAgent/list").post(upload.single("image"), verifyDealershipAgentToken, createListing);
+router.route("/dealershipagent/list").post(upload.single("image"), verifyDealershipAgentToken, createListing);
+
+const cashPaymentUpload = upload.fields([
+    { name: 'signature' },
+    { name: 'validId' }
+])
+router.route("/buyer/apply/cash").post(cashPaymentUpload, verifyBuyerToken, createCashApplicationRequest);
+
+const installmentPaymentUpload = upload.fields([
+    { name: 'buyerValidId', maxCount: 1 },
+    { name: 'buyerSignature', maxCount: 1 },
+    { name: 'coMakerValidId', maxCount: 1 },
+    { name: 'coMakerSignature', maxCount: 1 }
+]);
+router.route("/buyer/apply/installment").post(installmentPaymentUpload, verifyBuyerToken, createInstallmentApplicationRequest);
+router.route("/dealershipagent/application").put(verifyDealershipAgentToken, updateApplicationRequest);
 
 
+
+
+//wala pani
 router.route("/dealer/list").delete(verifyDealershipAgentToken, deleteListing);
 
 router.route("/listing").get(getListing);

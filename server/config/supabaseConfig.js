@@ -74,7 +74,7 @@ const initializeDatabase = async () => {
         await pool.query(createDealershipTable);
 
         let createDealershipAgentTable = `CREATE TABLE IF NOT EXISTS tblDealershipAgent(
-            userId UUID PRIMARY KEY,
+            id UUID PRIMARY KEY,
             dealership UUID NOT NULL,
             isAuthorized BOOL DEFAULT FALSE,
 
@@ -87,6 +87,8 @@ const initializeDatabase = async () => {
 
         await pool.query(createDealershipAgentTable);
 
+
+        //create isAvailable column
         let createListingTable = `CREATE TABLE IF NOT EXISTS tblListing(
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
             modelAndName VARCHAR(255) NOT NULL,
@@ -102,6 +104,7 @@ const initializeDatabase = async () => {
             image VARCHAR(255) NOT NULL,
             dealership UUID NOT NULL,
             dealershipAgent UUID NOT NULL,
+            isAvailable BOOLEAN DEFAULT TRUE,
 
             createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             updatedAt TIMESTAMPTZ,
@@ -111,6 +114,97 @@ const initializeDatabase = async () => {
         );`
 
         await pool.query(createListingTable);
+
+        let createCashPaymentRequestTable = `CREATE TABLE IF NOT EXISTS tblCashApplicationRequest (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            buyerId UUID NOT NULL,
+            listingId UUID NOT NULL,
+            validId VARCHAR NOT NULL,
+            signature VARCHAR NOT NULL,
+            progress INT NOT NULL CHECK (progress >= 1 AND progress <= 5) DEFAULT 1,
+            -- 1 documents is on review
+            -- 2 background checking/ criminal investigation on review
+            -- 3 releasing of unit
+            -- 4 registration on progress
+            -- 5 request successful
+
+            createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMPTZ,
+
+            FOREIGN KEY (buyerId) REFERENCES tblUserProfile (id) ON DELETE CASCADE,
+            FOREIGN KEY (listingId) REFERENCES tblListing (id) ON DELETE CASCADE,
+            CONSTRAINT cash_unique_order UNIQUE (listingId, buyerId)
+
+            --NICE TO HAVE: should enforce that the user has the role 
+        )`;
+
+        await pool.query(createCashPaymentRequestTable);
+
+        let createInstallmentPaymentRequestTable = `CREATE TABLE IF NOT EXISTS tblInstallmentApplicationRequest(
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            buyerId UUID NOT NULL,
+            listingId UUID NOT NULL,
+            validId VARCHAR NOT NULL,
+            signature VARCHAR NOT NULL,
+
+            coMakerFirstName VARCHAR NOT NULL,
+            coMakerLastName VARCHAR NOT NULL,
+            coMakerPhoneNumber VARCHAR NOT NULL,
+            coMakerValidId VARCHAR NOT NULL,
+            coMakerSignature VARCHAR NOT NULL,
+
+            progress INT NOT NULL CHECK (progress >= 1 AND progress <= 5) DEFAULT 1,
+            -- 1 documents is on review
+            -- 2 background checking/ criminal investigation on review
+            -- 3 releasing of unit
+            -- 4 registration on progress
+            -- 5 request successful
+
+            createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMPTZ,
+
+            FOREIGN KEY (buyerId) REFERENCES tblUserProfile (id) ON DELETE CASCADE,
+            FOREIGN KEY (listingId) REFERENCES tblListing (id) ON DELETE CASCADE,
+            CONSTRAINT installment_unique_order UNIQUE (listingId, buyerId)
+        )`;
+
+        await pool.query(createInstallmentPaymentRequestTable);
+
+        let createVehicleTable = `CREATE TABLE IF NOT EXISTS tblVehicle(
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            userId UUID NOT NULL,
+            modelAndName VARCHAR(255) NOT NULL,
+            make VARCHAR(255) NOT NULL,
+            fuelType VARCHAR(255) NOT NULL,
+            power VARCHAR(255) NOT NULL,
+            transmission VARCHAR(255) NOT NULL,
+            engine VARCHAR(255) NOT NULL,
+            fuelTankCapacity VARCHAR(255) NOT NULL,
+            seatingCapacity VARCHAR(255) NOT NULL,
+            price INT NOT NULL,
+            vehicleType VARCHAR(255) NOT NULL,
+            image VARCHAR(255) NOT NULL, 
+
+            createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMPTZ,
+
+            FOREIGN KEY (userId) REFERENCES tblUserProfile(id)
+        )`;
+
+        await pool.query(createVehicleTable);
+
+        let createRegistrationRequestTable = `CREATE TABLE IF NOT EXISTS tblRegistrationRequest(
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            vehicleId UUID NOT NULL,
+            progress INT NOT NULL CHECK (progress >= 1 AND progress <= 3) DEFAULT 1,
+
+            createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMPTZ,
+
+            FOREIGN KEY (vehicleId) REFERENCES tblVehicle(id)
+        )`;
+
+        await pool.query(createRegistrationRequestTable);
 
         console.log("Connected to postgres database")
     } catch (e) {

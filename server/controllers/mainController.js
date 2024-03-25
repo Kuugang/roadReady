@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4, validate } = require('uuid');
 const { db } = require("../config/dbConfig");
 const { supabase, pool } = require("../config/supabaseConfig")
 const asyncHandler = require("express-async-handler");
@@ -95,7 +95,7 @@ const dealerRegister = asyncHandler(async (req, res) => {
 
         const { rows: userProfile, error: profileError } = await pool.query(createUserProfileQuery, [data.user.id, firstName, lastName, phoneNumber, address, gender]);
 
-        const createDealershipAgent = `INSERT INTO tblDealershipAgent (userid, dealership) VALUES ($1, $2)`
+        const createDealershipAgent = `INSERT INTO tblDealershipAgent (id, dealership) VALUES ($1, $2)`
         const { rows: dealershipAgent, error: dealershipAgentErorr } = await pool.query(createDealershipAgent, [data.user.id, dealership.id]);
 
         if (profileError || dealershipAgentErorr) {
@@ -268,68 +268,83 @@ const createListing = asyncHandler(async (req, res) => {
 //TODO more dynamic filter
 const getListing = asyncHandler(async (req, res) => {
     try {
-        const { listingId, dealershipId, dealerAgentId } = req.query;
+        const { listingId, dealershipId, dealershipAgentId } = req.query;
 
         if (listingId) {
             let query = `
-            SELECT l.*, 
-                a.id AS agentId,
-                a.firstName AS agentFirstName,
-                a.lastName AS agentLastName,
-                a.phoneNumber AS agentPhoneNumber,
-
-                d.name AS dealershipName,
-                d.manager AS dealershipManager,
-                d.latitude AS dealershipLatitude,
-                d.longitude AS dealershipLongitude,
-                d.address AS dealershipAddress
-
-            FROM tblListing l
-            LEFT JOIN tblUserProfile a ON l.dealershipAgent = a.id
+            SELECT l.*,
+                   json_build_object('id', d.id, 
+                                     'name', d.name, 
+                                     'address', d.address, 
+                                     'latitude', d.latitude,
+                                     'longitude', d.longitude) AS dealership,
+                    json_build_object('id', a.id,
+                                    'firstName', a.firstname,
+                                    'lastName', a.lastname,
+                                    'phoneNumber', a.phoneNumber) AS dealershipAgent
+                    FROM tblListing l
             LEFT JOIN tblDealership d ON l.dealership = d.id
-            WHERE l.id = $1
-            GROUP BY l.id, a.id, a.firstName, a.lastName, a.phoneNumber, d.name, d.manager, d.latitude, d.longitude, d.address`;
+            LEFT JOIN tblUserProfile a ON l.dealershipAgent = a.id
+            WHERE l.id = $1`;
 
             const result = (await pool.query(query, [listingId])).rows[0];
-
-            if (!result) return res.status(404).json({ message: "listing not found" });
-
-            result.dealership = {
-                id: result.dealership,
-                name: result.dealershipname,
-                manager: result.dealershipmanager,
-                latitude: result.dealershiplatitude,
-                longitude: result.dealershiplongitude,
-                address: result.dealershipaddress
-            }
-
-            result.agent = {
-                id: result.agentid,
-                firstName: result.agentfirstname,
-                lastName: result.agentlastname,
-                phoneNumber: result.agentphonenumber,
-            }
-            delete result.dealershipagent;
-            delete result.agentid;
-            delete result.agentfirstname;
-            delete result.agentlastname;
-            delete result.agentphonenumber;
-            delete result.dealershipname
-            delete result.dealershipmanager
-            delete result.dealershiplatitude
-            delete result.dealershiplongitude
-            delete result.dealershipaddress
-
             return res.status(200).json(result);
         }
 
         if (dealershipId) {
-            let query = "SELECT * FROM tblListing WHERE dealership = $1";
+            let query = `SELECT l.*,
+                   json_build_object('id', d.id, 
+                                     'name', d.name, 
+                                     'address', d.address, 
+                                     'latitude', d.latitude,
+                                     'longitude', d.longitude) AS dealership,
+                    json_build_object('id', a.id,
+                                    'firstName', a.firstname,
+                                    'lastName', a.lastname,
+                                    'phoneNumber', a.phoneNumber) AS dealershipAgent
+                    FROM tblListing l
+            LEFT JOIN tblDealership d ON l.dealership = d.id
+            LEFT JOIN tblUserProfile a ON l.dealershipAgent = a.id
+            WHERE l.dealership = $1`;
+
             const listings = (await pool.query(query, [dealershipId])).rows;
             return res.status(200).json(listings);
         }
 
-        let query = "SELECT * FROM tblListing";
+        if (dealershipAgentId) {
+            let query = `SELECT l.*,
+                   json_build_object('id', d.id, 
+                                     'name', d.name, 
+                                     'address', d.address, 
+                                     'latitude', d.latitude,
+                                     'longitude', d.longitude) AS dealership,
+                    json_build_object('id', a.id,
+                                    'firstName', a.firstname,
+                                    'lastName', a.lastname,
+                                    'phoneNumber', a.phoneNumber) AS dealershipAgent
+                    FROM tblListing l
+            LEFT JOIN tblDealership d ON l.dealership = d.id
+            LEFT JOIN tblUserProfile a ON l.dealershipAgent = a.id
+            WHERE l.dealershipagent = $1`;
+
+            const listings = (await pool.query(query, [dealershipAgentId])).rows;
+            return res.status(200).json(listings);
+        }
+
+        let query = `SELECT l.*,
+                json_build_object('id', d.id, 
+                                    'name', d.name, 
+                                    'address', d.address, 
+                                    'latitude', d.latitude,
+                                    'longitude', d.longitude) AS dealership,
+                json_build_object('id', a.id,
+                                'firstName', a.firstname,
+                                'lastName', a.lastname,
+                                'phoneNumber', a.phoneNumber) AS dealershipAgent
+                FROM tblListing l
+        LEFT JOIN tblDealership d ON l.dealership = d.id
+        LEFT JOIN tblUserProfile a ON l.dealershipAgent = a.id`;
+
         const listings = (await pool.query(query)).rows
         return res.status(200).json(listings);
     } catch (error) {
@@ -343,42 +358,47 @@ const getDealership = asyncHandler(async (req, res) => {
 
     if (dealershipName) {
         const filter = `%${dealershipName.toLowerCase()}%`;
-        let query = `SELECT * FROM tblDealership WHERE LOWER(name) LIKE $1`;
+
+        let query = `
+        SELECT d.*,
+               json_build_object('id', u.id, 
+                                 'firstName', u.firstname, 
+                                 'lastName', u.lastname, 
+                                 'phoneNumber', u.phonenumber) AS manager
+                FROM tblDealership d
+        LEFT JOIN tblUserProfile u ON d.manager = u.id
+        WHERE LOWER(name) LIKE $1`;
+
         const dealerships = (await pool.query(query, [filter])).rows;
         return res.status(200).json(dealerships);
     }
 
     if (dealershipId) {
         let query = `
-        SELECT d.*, 
-            m.id AS managerId,
-            m.firstName AS managerFirstName,
-            m.lastName AS managerLastName,
-            m.phoneNumber as managerPhoneNumber
-        FROM tblDealership d
-        LEFT JOIN tblUserProfile m ON d.manager = m.id
+        SELECT d.*,
+               json_build_object('id', u.id, 
+                                 'firstName', u.firstname, 
+                                 'lastName', u.lastname, 
+                                 'phoneNumber', u.phonenumber) AS manager
+                FROM tblDealership d
+        LEFT JOIN tblUserProfile u ON d.manager = u.id
         WHERE d.id = $1`;
 
         const result = (await pool.query(query, [dealershipId])).rows[0];
         if (!result) return res.status(404).json({ message: "dealership not found" });
-
-        result.manager = {
-            id: result.managerid,
-            firstName: result.managerfirstname,
-            lastName: result.managerlastname,
-            phoneNumber: result.managerphonenumber,
-        }
-
-        delete result.managerid
-        delete result.managerfirstname;
-        delete result.managerlastname;
-        delete result.managerphonenumber;
-
         return res.status(200).json(result);
     }
+    let query = `
+    SELECT d.*,
+           json_build_object('id', u.id, 
+                             'firstName', u.firstname, 
+                             'lastName', u.lastname, 
+                             'phoneNumber', u.phonenumber) AS manager
+            FROM tblDealership d
+    LEFT JOIN tblUserProfile u ON d.manager = u.id`;
 
-    let query = "SELECT * FROM tblDealership";
     const dealerships = (await pool.query(query)).rows;
+
     return res.status(200).json(dealerships);
 })
 
@@ -407,7 +427,202 @@ const deleteListing = asyncHandler(async (req, res) => {
     }
 });
 
+const createCashApplicationRequest = asyncHandler(async (req, res) => {
+    const requiredFields = ['listingId'];
+    validateRequiredFields(requiredFields, req.body, res);
+    const { listingId } = req.body;
 
+
+    let query = "SELECT * FROM tblListing WHERE id = $1 AND isAvailable = TRUE";
+    const listing = (await pool.query(query, [listingId])).rows[0];
+    if (!listing) return res.status(404).json({ message: "listing not found" })
+
+    const signature = req.files['signature'][0];
+    const validId = req.files['validId'][0];
+
+    const { data: validIdUploadData, error: validIdUploadError } = await supabase.storage.from('request/validId').upload(uuidv4(), validId.buffer, {
+        contentType: validId.mimetype
+    });
+
+    if (validIdUploadError) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+
+    const { data: signatureUploadData, error: signatureUploadError } = await supabase.storage.from('request/signature').upload(uuidv4(), signature.buffer, {
+        contentType: signature.mimetype
+    });
+
+    if (signatureUploadError) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+
+    const validIdURL = `https://xjrhebmomygxcafbvlye.supabase.co/storage/v1/object/public/` + validIdUploadData.fullPath
+    const signatureURL = `https://xjrhebmomygxcafbvlye.supabase.co/storage/v1/object/public/` + signatureUploadData.fullPath
+
+    // id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    //     buyerId UUID NOT NULL,
+    //         listingId UUID NOT NULL,
+    //             validId VARCHAR NOT NULL,
+    //                 signature VARCHAR NOT NULL,
+    //                     progress INT NOT NULL DEFAULT 1,
+    // --1 documents is on review
+    // --2 background checking / criminal investigation on review
+    // --3 releasing of unit
+    // --4 registration on progress
+    // --5 request successful
+
+    query = "INSERT INTO tblCashApplicationRequest (buyerId, listingId, dealershipAgentId, validId, signature) VALUES ($1, $2, $3, $4, $5)";
+    const { data, error } = await pool.query(query, [req.tokenData.id, listingId, listing.dealershipagent, validIdURL, signatureURL]);
+    return res.status(200).json({ message: "application request created successfully" })
+})
+
+const createInstallmentApplicationRequest = asyncHandler(async (req, res) => {
+    try {
+        const requiredFields = ['listingId', 'coMakerFirstName', 'coMakerLastName', 'coMakerPhoneNumber'];
+        validateRequiredFields(requiredFields, req.body, res);
+
+        const { listingId, coMakerFirstName, coMakerLastName, coMakerPhoneNumber } = req.body;
+
+        let query = "SELECT * FROM tblListing WHERE id = $1 AND isAvailable = TRUE";
+        const listing = (await pool.query(query, [listingId])).rows[0];
+        if (!listing) return res.status(404).json({ message: "listing not found" });
+
+        const buyerSignature = req.files['buyerSignature'][0];
+        const buyerValidId = req.files['buyerValidId'][0];
+        const coMakerValidId = req.files['coMakerValidId'][0];
+        const coMakerSignature = req.files['coMakerSignature'][0];
+
+        const { data: buyerSignatureUploadData, error: buyerSignatureUploadError } = await supabase.storage.from('request/signature').upload(uuidv4(), buyerSignature.buffer, {
+            contentType: buyerSignature.mimetype
+        });
+
+        if (buyerSignatureUploadError) {
+            return res.status(500).json({ success: false, error: error.message });
+        }
+
+        const { data: buyerValidIdUploadData, error: buyerValidIdUploadError } = await supabase.storage.from('request/validId').upload(uuidv4(), buyerValidId.buffer, {
+            contentType: buyerValidId.mimetype
+        });
+
+        if (buyerValidIdUploadError) {
+            return res.status(500).json({ success: false, error: error.message });
+        }
+
+        const { data: coMakerSignatureUploadData, error: coMakerSignatureUploadError } = await supabase.storage.from('request/signature').upload(uuidv4(), coMakerSignature.buffer, {
+            contentType: coMakerSignature.mimetype
+        });
+
+        if (coMakerSignatureUploadError) {
+            return res.status(500).json({ success: false, error: error.message });
+        }
+
+        const { data: coMakerValidIdUploadData, error: coMakerValidIdUploadError } = await supabase.storage.from('request/validId').upload(uuidv4(), coMakerValidId.buffer, {
+            contentType: coMakerValidId.mimetype
+        });
+
+        if (coMakerValidIdUploadError) {
+            return res.status(500).json({ success: false, error: error.message });
+        }
+
+        const buyerSignatureURL = `https://xjrhebmomygxcafbvlye.supabase.co/storage/v1/object/public/` + buyerSignatureUploadData.fullPath
+        const buyerValidIdURL = `https://xjrhebmomygxcafbvlye.supabase.co/storage/v1/object/public/` + buyerValidIdUploadData.fullPath
+
+        const coMakerSignatureURL = `https://xjrhebmomygxcafbvlye.supabase.co/storage/v1/object/public/` + coMakerSignatureUploadData.fullPath
+        const coMakerValidIdURL = `https://xjrhebmomygxcafbvlye.supabase.co/storage/v1/object/public/` + coMakerValidIdUploadData.fullPath
+
+        //id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        //buyerId UUID NOT NULL,
+        //listingId UUID NOT NULL,
+        //validId VARCHAR NOT NULL,
+        //signature VARCHAR NOT NULL,
+
+        //coMakerFirstName VARCHAR NOT NULL,
+        //coMakerLastName VARCHAR NOT NULL,
+        //coMakerPhoneNumber VARCHAR NOT NULL,
+        //coMakeValidId VARCHAR NOT NULL,
+        //coMakeSignature VARCHAR NOT NULL,
+
+        //progress INT NOT NULL DEFAULT 1,
+        //-- 1 documents is on review
+        //-- 2 background checking/ criminal investigation on review
+        //-- 3 releasing of unit
+        //-- 4 registration on progress
+        //-- 5 request successful
+        query = "INSERT INTO tblInstallmentApplicationRequest (buyerId, listingId, dealershipAgentId, validId, signature, coMakerFirstName, coMakerLastName, coMakerPhoneNumber, coMakerValidId, coMakerSignature) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
+
+        const { data, error } = await pool.query(query, [req.tokenData.id, listingId, listing.dealershipagent, buyerValidIdURL, buyerSignatureURL, coMakerFirstName, coMakerLastName, coMakerPhoneNumber, coMakerValidIdURL, coMakerSignatureURL]);
+        return res.status(200).json({ message: "application request created successfully" })
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json(error);
+    }
+})
+
+const createVehicle = async (listing, buyerId) => {
+
+    const { modelandname, make, fueltype, power, transmission, engine, fueltankcapacity, seatingcapacity, price, vehicletype, image } = listing;
+
+    let query = "INSERT INTO tblVehicle (userId, modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, vehicleType, image) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *";
+    const vehicle = (await (pool.query(query, [buyerId, modelandname, make, fueltype, power, transmission, engine, fueltankcapacity, seatingcapacity, price, vehicletype, image]))).rows[0];
+
+    query = "INSERT INTO tblRegistrationRequest (vehicleId) VALUES ($1)"
+    await (pool.query(query, [vehicle.id]));
+}
+
+const updateApplicationRequest = asyncHandler(async (req, res) => {
+    try {
+        const { cashApplicationRequest, installmentApplicationRequest, progress, listingId } = req.body;
+        //progress 1-5;
+        //should be an authorized agent and should be "employed" in the dealership
+
+        let query = "SELECT * FROM tblListing WHERE id = $1";
+        const listing = (await pool.query(query, [listingId])).rows[0];
+        if (!listing) return res.status(404).json({ message: "listing not found" });
+        if (listing.dealershipagent != req.tokenData.id) return res.sendStatus(401);
+
+        if (!progress) return res.status(400).json({ message: "progress is required" });
+        if (cashApplicationRequest) {
+            let query = "UPDATE tblCashApplicationRequest SET progress = $1 RETURNING *";
+            const applicationRequest = (await pool.query(query, [progress])).rows[0];
+
+            if (progress == 4) {
+                query = "UPDATE tblListing SET isAvailable = false WHERE id = $1";
+                await pool.query(query, [listing.id]);
+                createVehicle(listing, applicationRequest.buyerid);
+            }
+
+            return res.status(200).json({ message: "updated application progress" })
+        }
+
+        if (installmentApplicationRequest) {
+            let query = "UPDATE tblInstallmentApplicationRequest SET progress = $1 RETURNING";
+            const applicationRequest = (await pool.query(query, [progress])).rows[0];
+
+            query = "UPDATE tblListing SET isAvailable = false WHERE id = $1";
+            await pool.query(query, [listing.id]);
+            if (progress == 4) {
+                createVehicle(listing, applicationRequest.buyerid);
+            }
+
+            return res.status(200).json({ message: "updated application progress" })
+        }
+
+        return res.status(400).json({ message: "application type is required" })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json(error);
+    }
+})
+
+
+
+
+
+
+
+
+//--------------------
 const requestDealershipManagerPrivilege = asyncHandler(async (req, res) => {
     try {
         const now = new Date();
@@ -423,6 +638,7 @@ const requestDealershipManagerPrivilege = asyncHandler(async (req, res) => {
         return res.status(500).json({ message: e.message })
     }
 })
+
 
 const updateUserPrivilege = asyncHandler(async (req, res) => {
     try {
@@ -449,35 +665,13 @@ const updateUserPrivilege = asyncHandler(async (req, res) => {
     }
 })
 
-const getUser = asyncHandler(async (req, res) => {
-    const userId = req.query.userId;
-
-    if (!userId) {
-        return res.status(400).json({ message: 'User ID is required' });
-    }
-
-    try {
-        const userDoc = await getDoc(doc(db, 'users', userId));
-
-        if (!userDoc.exists()) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-
-        const userData = { id: userDoc.id, ...userDoc.data() };
-
-        return res.status(200).json(userData);
-    } catch (error) {
-        console.error('Error fetching user:', error);
-        return res.status(500).json({ message: 'Internal server error' });
-    }
-});
-
 
 const getUsers = asyncHandler(async (req, res) => {
     const usersSnapshot = await getDocs(buyerCol);
     const usersList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     return res.status(200).json(usersList);
 })
+
 
 module.exports = {
     buyerRegister,
@@ -489,6 +683,9 @@ module.exports = {
 
     getDealership,
 
+    createCashApplicationRequest,
+    createInstallmentApplicationRequest,
+    updateApplicationRequest,
 
     // updateBuyerUserProfile,
     // updateDealerAgentUserProfile,
