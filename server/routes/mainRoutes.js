@@ -30,6 +30,7 @@ const {
     createCashApplicationRequest,
     createInstallmentApplicationRequest,
     updateApplicationRequest,
+    updateRegistrationRequest,
 
 
 
@@ -58,6 +59,10 @@ router.route("/user/profile").put(verifyRole, updateUserProfile);
 
 router.route("/dealership").get(getDealership);
 
+//returns listing based on string query, returns listing regardless if available of not
+router.route("/listing").get(getListing);
+
+//lists a vehicle, dealer agent must be authorized to list under that dealership
 router.route("/dealershipagent/list").post(upload.single("image"), verifyDealershipAgentToken, createListing);
 
 const cashPaymentUpload = upload.fields([
@@ -74,6 +79,7 @@ const installmentPaymentUpload = upload.fields([
 ]);
 router.route("/buyer/apply/installment").post(installmentPaymentUpload, verifyBuyerToken, createInstallmentApplicationRequest);
 router.route("/dealershipagent/application").put(verifyDealershipAgentToken, updateApplicationRequest);
+router.route("/dealershipagent/registration").put(verifyDealershipAgentToken, updateRegistrationRequest);
 
 
 
@@ -81,7 +87,6 @@ router.route("/dealershipagent/application").put(verifyDealershipAgentToken, upd
 //wala pani
 router.route("/dealer/list").delete(verifyDealershipAgentToken, deleteListing);
 
-router.route("/listing").get(getListing);
 
 router.route("/request/1").post(verifyDealershipAgentToken, requestDealershipManagerPrivilege);
 

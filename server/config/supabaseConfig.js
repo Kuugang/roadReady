@@ -184,6 +184,10 @@ const initializeDatabase = async () => {
             price INT NOT NULL,
             vehicleType VARCHAR(255) NOT NULL,
             image VARCHAR(255) NOT NULL, 
+            isRegistered BOOLEAN DEFAULT FALSE NOT NULL,
+
+            registeredOn TIMESTAMPTZ,
+            registrationExpiry TIMESTAMPTZ,
 
             createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             updatedAt TIMESTAMPTZ,
@@ -194,14 +198,20 @@ const initializeDatabase = async () => {
         await pool.query(createVehicleTable);
 
         let createRegistrationRequestTable = `CREATE TABLE IF NOT EXISTS tblRegistrationRequest(
-            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            id UUID PRIMARY KEY,
             vehicleId UUID NOT NULL,
+            listingId UUID NOT NULL,
+            dealership UUID NOT NULL,
+            dealershipAgent UUID NOT NULL,
             progress INT NOT NULL CHECK (progress >= 1 AND progress <= 3) DEFAULT 1,
 
             createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             updatedAt TIMESTAMPTZ,
 
-            FOREIGN KEY (vehicleId) REFERENCES tblVehicle(id)
+            FOREIGN KEY (vehicleId) REFERENCES tblVehicle(id),
+            FOREIGN KEY (listingId) REFERENCES tblListing (id),
+            FOREIGN KEY (dealership) REFERENCES tblDealership (id),
+            FOREIGN KEY (dealershipAgent) REFERENCES tblUserProfile (id)
         )`;
 
         await pool.query(createRegistrationRequestTable);

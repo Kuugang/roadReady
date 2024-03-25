@@ -7,7 +7,7 @@ const asyncHandler = require("express-async-handler");
 const { collection, documentId, getDocs, getDoc, doc, query, where, addDoc, deleteDoc, updateDoc, queryEqual } = require("firebase/firestore/lite")
 
 
-const { getStorage, ref, getDownloadURL, uploadBytesResumable } = require("firebase/storage")
+const { getStorage, ref, getDownloadURL, uploadBytesResumable, list } = require("firebase/storage")
 
 const { validateRequiredFields, queryDatabase } = require("./helper")
 const fs = require("fs");
@@ -403,27 +403,14 @@ const getDealership = asyncHandler(async (req, res) => {
 })
 
 const deleteListing = asyncHandler(async (req, res) => {
+    validateRequiredFields(['listingId'], req.body, res);
     try {
-        const requiredFields = ['listingId'];
-        validateRequiredFields(requiredFields, req.body, res);
-
-        const listingDocRef = doc(listingCol, req.body.listingId);
-        const listingDocSnapshot = await getDoc(listingDocRef);
-
-        if (!listingDocSnapshot.exists()) {
-            return res.status(404).json({ message: "Listing not found" });
-        }
-
-        const listingData = listingDocSnapshot.data();
-        if (listingData.dealerId !== req.tokenData.id) {
-            return res.status(403).json({ message: "Unauthorized access to listing" });
-        }
-
-        await deleteDoc(listingDocRef);
-        return res.status(200).json({ message: "Deleted listing successfully" });
+        let query = "DELETE FROM tblListing WHERE id = $1 AND dealershipagent = $2"
+        await (pool.query(query, [listingId, req.tokenData.id]));
+        return res.status(200).json({ message: "successfully deleted listing" });
     } catch (error) {
         console.error(error);
-        return res.status(500).json({ message: "Internal Server Error" });
+        return res.status(500).json(error);
     }
 });
 
@@ -445,7 +432,7 @@ const createCashApplicationRequest = asyncHandler(async (req, res) => {
     });
 
     if (validIdUploadError) {
-        return res.status(500).json({ success: false, error: error.message });
+        return res.status(500).json({ success: false, error: validIdUploadError });
     }
 
     const { data: signatureUploadData, error: signatureUploadError } = await supabase.storage.from('request/signature').upload(uuidv4(), signature.buffer, {
@@ -453,7 +440,7 @@ const createCashApplicationRequest = asyncHandler(async (req, res) => {
     });
 
     if (signatureUploadError) {
-        return res.status(500).json({ success: false, error: error.message });
+        return res.status(500).json({ success: false, error: signatureUploadError });
     }
 
     const validIdURL = `https://xjrhebmomygxcafbvlye.supabase.co/storage/v1/object/public/` + validIdUploadData.fullPath
@@ -471,8 +458,8 @@ const createCashApplicationRequest = asyncHandler(async (req, res) => {
     // --4 registration on progress
     // --5 request successful
 
-    query = "INSERT INTO tblCashApplicationRequest (buyerId, listingId, dealershipAgentId, validId, signature) VALUES ($1, $2, $3, $4, $5)";
-    const { data, error } = await pool.query(query, [req.tokenData.id, listingId, listing.dealershipagent, validIdURL, signatureURL]);
+    query = "INSERT INTO tblCashApplicationRequest (buyerId, listingId, validId, signature) VALUES ($1, $2, $3, $4)";
+    const { data, error } = await pool.query(query, [req.tokenData.id, listingId, validIdURL, signatureURL]);
     return res.status(200).json({ message: "application request created successfully" })
 })
 
@@ -483,9 +470,11 @@ const createInstallmentApplicationRequest = asyncHandler(async (req, res) => {
 
         const { listingId, coMakerFirstName, coMakerLastName, coMakerPhoneNumber } = req.body;
 
-        let query = "SELECT * FROM tblListing WHERE id = $1 AND isAvailable = TRUE";
+        let query = "SELECT * FROM tblListing WHERE id = $1";
         const listing = (await pool.query(query, [listingId])).rows[0];
+
         if (!listing) return res.status(404).json({ message: "listing not found" });
+        if (listing.isavailable == false) return res.status(400).json({ message: "listing is not available" });
 
         const buyerSignature = req.files['buyerSignature'][0];
         const buyerValidId = req.files['buyerValidId'][0];
@@ -497,7 +486,7 @@ const createInstallmentApplicationRequest = asyncHandler(async (req, res) => {
         });
 
         if (buyerSignatureUploadError) {
-            return res.status(500).json({ success: false, error: error.message });
+            return res.status(500).json({ success: false, error: buyerSignatureUploadError });
         }
 
         const { data: buyerValidIdUploadData, error: buyerValidIdUploadError } = await supabase.storage.from('request/validId').upload(uuidv4(), buyerValidId.buffer, {
@@ -505,7 +494,7 @@ const createInstallmentApplicationRequest = asyncHandler(async (req, res) => {
         });
 
         if (buyerValidIdUploadError) {
-            return res.status(500).json({ success: false, error: error.message });
+            return res.status(500).json({ success: false, error: buyerValidIdUploadError });
         }
 
         const { data: coMakerSignatureUploadData, error: coMakerSignatureUploadError } = await supabase.storage.from('request/signature').upload(uuidv4(), coMakerSignature.buffer, {
@@ -513,7 +502,7 @@ const createInstallmentApplicationRequest = asyncHandler(async (req, res) => {
         });
 
         if (coMakerSignatureUploadError) {
-            return res.status(500).json({ success: false, error: error.message });
+            return res.status(500).json({ success: false, error: coMakerSignatureUploadError });
         }
 
         const { data: coMakerValidIdUploadData, error: coMakerValidIdUploadError } = await supabase.storage.from('request/validId').upload(uuidv4(), coMakerValidId.buffer, {
@@ -521,9 +510,8 @@ const createInstallmentApplicationRequest = asyncHandler(async (req, res) => {
         });
 
         if (coMakerValidIdUploadError) {
-            return res.status(500).json({ success: false, error: error.message });
+            return res.status(500).json({ success: false, error: coMakerValidIdUploadError });
         }
-
         const buyerSignatureURL = `https://xjrhebmomygxcafbvlye.supabase.co/storage/v1/object/public/` + buyerSignatureUploadData.fullPath
         const buyerValidIdURL = `https://xjrhebmomygxcafbvlye.supabase.co/storage/v1/object/public/` + buyerValidIdUploadData.fullPath
 
@@ -548,10 +536,23 @@ const createInstallmentApplicationRequest = asyncHandler(async (req, res) => {
         //-- 3 releasing of unit
         //-- 4 registration on progress
         //-- 5 request successful
-        query = "INSERT INTO tblInstallmentApplicationRequest (buyerId, listingId, dealershipAgentId, validId, signature, coMakerFirstName, coMakerLastName, coMakerPhoneNumber, coMakerValidId, coMakerSignature) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
+        query = "INSERT INTO tblInstallmentApplicationRequest (buyerId, listingId, validId, signature, coMakerFirstName, coMakerLastName, coMakerPhoneNumber, coMakerValidId, coMakerSignature) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
 
-        const { data, error } = await pool.query(query, [req.tokenData.id, listingId, listing.dealershipagent, buyerValidIdURL, buyerSignatureURL, coMakerFirstName, coMakerLastName, coMakerPhoneNumber, coMakerValidIdURL, coMakerSignatureURL]);
-        return res.status(200).json({ message: "application request created successfully" })
+        try {
+            const { data, error } = await pool.query(query, [req.tokenData.id, listingId, buyerValidIdURL, buyerSignatureURL, coMakerFirstName, coMakerLastName, coMakerPhoneNumber, coMakerValidIdURL, coMakerSignatureURL]);
+            return res.status(200).json({ message: "application request created successfully" })
+        } catch (error) {
+            if (error.code == '23505') {
+                // await Promise.all([
+                //     supabase.storage.from('request/signature').remove([buyerSignatureUploadData.fullPath]),
+                //     supabase.storage.from('request/validId').remove([buyerValidIdUploadData.fullPath]),
+                //     supabase.storage.from('request/signature').remove([coMakerSignatureUploadData.fullPath]),
+                //     supabase.storage.from('request/validId').remove([coMakerValidIdUploadData.fullPath])
+                // ]);
+                return res.status(500).json({ success: false, error: error });
+            }
+            throw new Error(error)
+        }
     } catch (error) {
         console.log(error)
         return res.status(500).json(error);
@@ -560,13 +561,12 @@ const createInstallmentApplicationRequest = asyncHandler(async (req, res) => {
 
 const createVehicle = async (listing, buyerId) => {
 
-    const { modelandname, make, fueltype, power, transmission, engine, fueltankcapacity, seatingcapacity, price, vehicletype, image } = listing;
+    const { modelandname, make, fueltype, power, transmission, engine, fueltankcapacity, seatingcapacity, price, vehicletype, image, dealership, dealershipagent } = listing;
+    let query = "INSERT INTO tblVehicle (id, userId, modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, vehicleType, image) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *";
+    const vehicle = (await (pool.query(query, [listing.id, buyerId, modelandname, make, fueltype, power, transmission, engine, fueltankcapacity, seatingcapacity, price, vehicletype, image]))).rows[0];
 
-    let query = "INSERT INTO tblVehicle (userId, modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, vehicleType, image) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *";
-    const vehicle = (await (pool.query(query, [buyerId, modelandname, make, fueltype, power, transmission, engine, fueltankcapacity, seatingcapacity, price, vehicletype, image]))).rows[0];
-
-    query = "INSERT INTO tblRegistrationRequest (vehicleId) VALUES ($1)"
-    await (pool.query(query, [vehicle.id]));
+    query = "INSERT INTO tblRegistrationRequest (vehicleId, dealership, dealershipAgent) VALUES ($1, $2, $3)"
+    await (pool.query(query, [vehicle.id, dealership, dealershipagent]));
 }
 
 const updateApplicationRequest = asyncHandler(async (req, res) => {
@@ -580,10 +580,14 @@ const updateApplicationRequest = asyncHandler(async (req, res) => {
         if (!listing) return res.status(404).json({ message: "listing not found" });
         if (listing.dealershipagent != req.tokenData.id) return res.sendStatus(401);
 
+
         if (!progress) return res.status(400).json({ message: "progress is required" });
         if (cashApplicationRequest) {
             let query = "UPDATE tblCashApplicationRequest SET progress = $1 RETURNING *";
             const applicationRequest = (await pool.query(query, [progress])).rows[0];
+
+            //delete other applications on this listing if it is already released
+            if (applicationRequest.progress >= 4) return res.status(400).json({ message: "vehicle is already released" })
 
             if (progress == 4) {
                 query = "UPDATE tblListing SET isAvailable = false WHERE id = $1";
@@ -595,8 +599,11 @@ const updateApplicationRequest = asyncHandler(async (req, res) => {
         }
 
         if (installmentApplicationRequest) {
-            let query = "UPDATE tblInstallmentApplicationRequest SET progress = $1 RETURNING";
+            let query = "UPDATE tblInstallmentApplicationRequest SET progress = $1 RETURNING *";
             const applicationRequest = (await pool.query(query, [progress])).rows[0];
+
+            //delete other applications on this listing if it is already released
+            if (applicationRequest.progress >= 4) return res.status(400).json({ message: "vehicle is already released" })
 
             query = "UPDATE tblListing SET isAvailable = false WHERE id = $1";
             await pool.query(query, [listing.id]);
@@ -608,16 +615,56 @@ const updateApplicationRequest = asyncHandler(async (req, res) => {
         }
 
         return res.status(400).json({ message: "application type is required" })
-
     } catch (error) {
         console.log(error);
         return res.status(500).json(error);
     }
 })
 
+const updateRegistrationRequest = asyncHandler(async (req, res) => {
+    try {
+        validateRequiredFields(['registrationRequestId', 'progress'], req.body, res);
+        const { registrationRequestId, progress } = req.body;
+
+        let query = "UPDATE tblRegistrationRequest SET progress = $1 WHERE id = $2 AND dealershipagent = $3 RETURNING *";
+        const request = (await pool.query(query, [progress, registrationRequestId, req.tokenData.id])).rows[0];
+
+        if (progress == 3) {
+            const registeredOn = new Date();
+            const expiry = new Date();
+            expiry.setFullYear(expiry.getFullYear() + 3);
+
+            query = "UPDATE tblVehicle SET isRegistered = true, registeredon = $1, registrationexpiry = $2"
+            await pool.query(query, [registeredOn, expiry])
+
+            query = "UPDATE tblCashApplicationRequest SET progress = 5 WHERE listingId = $1";
+            await pool.query(query, [request.vehicleid]);
+
+            query = "UPDATE tblInstallmentApplicationRequest SET progress = 5 WHERE listingId = $1";
+            await pool.query(query, [request.vehicleid]);
+        }
+        return res.status(200).json({ message: "updated registration progress" });
+    } catch (error) {
+        console.log(error)
+        res.status(500).json(error)
+    }
+})
 
 
+//admin
 
+const updateUserPrivilege = asyncHandler(async (req, res) => {
+    try {
+        validateRequiredFields(['role'], req.body, res);
+
+        let query = "UPDATE tblUserProfile SET role = $1";
+        await (pool.quey(query, [role]));
+        return res.status(200).json({ message: "successfully updated user role" });
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json(error)
+    }
+})
 
 
 
@@ -640,31 +687,6 @@ const requestDealershipManagerPrivilege = asyncHandler(async (req, res) => {
 })
 
 
-const updateUserPrivilege = asyncHandler(async (req, res) => {
-    try {
-        const requiredFields = ["userId", "privilege"];
-        validateRequiredFields(requiredFields, req.body, res);
-
-        const { userId, privilege } = req.body;
-        const userDocRef = doc(usersCol, userId);
-        const userDocSnapshot = await getDoc(userDocRef);
-
-        if (userDocSnapshot.empty) {
-            return res.status(400).json({ message: "User not found" });
-        }
-
-        const updateData = {
-            privilege: privilege
-        };
-
-        await updateDoc(userDocRef, updateData);
-        return res.status(200).json({ message: "Updated user privilege" });
-    } catch (error) {
-        console.log(error)
-        return res.status(500).json({ message: e.message })
-    }
-})
-
 
 const getUsers = asyncHandler(async (req, res) => {
     const usersSnapshot = await getDocs(buyerCol);
@@ -686,6 +708,7 @@ module.exports = {
     createCashApplicationRequest,
     createInstallmentApplicationRequest,
     updateApplicationRequest,
+    updateRegistrationRequest,
 
     // updateBuyerUserProfile,
     // updateDealerAgentUserProfile,
