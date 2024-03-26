@@ -423,7 +423,16 @@ const getListing = asyncHandler(async (req, res) => {
 })
 
 const getDealership = asyncHandler(async (req, res) => {
-    const { dealershipName, dealershipId } = req.query;
+    const { dealershipName, dealershipId, latitude, longitude, km } = req.query;
+
+    if (latitude && longitude && km) {
+        let query = `SELECT * FROM tblDealership WHERE 
+                 acos(sin(radians(latitude)) * sin(radians($1)) +
+                      cos(radians(latitude)) * cos(radians($2)) *
+                      cos(radians(longitude) - radians($3))) * 6371 <= $4`;
+        const dealerships = (await pool.query(query, [latitude, latitude, longitude, km])).rows;
+        return res.status(200).json(dealerships)
+    }
 
     if (dealershipName) {
         const filter = `%${dealershipName.toLowerCase()}%`;
