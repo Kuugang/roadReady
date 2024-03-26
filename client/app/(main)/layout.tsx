@@ -1,4 +1,9 @@
-import Sidebar from "@/components/sidebar";
+import Sidebar from "@/components/sidebar/sidebar";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 
 export default function RootLayout({
   children,
@@ -6,10 +11,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className={"flex h-full"}>
-      <Sidebar />
-      {/* TODO: Possibly make this adjustable screen */}
-      <div className="rounded-full z-10 flex-1">{children}</div>
-    </div>
+    <ResizablePanelGroup className="h-full" direction="horizontal">
+      <ResizablePanel className="h-full">
+        <Sidebar />
+      </ResizablePanel>
+      <ResizableHandle />
+      <ResizablePanel className="h-full">
+        <div className="rounded-full z-10 flex-1 h-full">{children}</div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }
