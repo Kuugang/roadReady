@@ -1,6 +1,3 @@
-const { getDocs, query } = require("firebase/firestore/lite")
-
-
 function validateRequiredFields(fields, body, res) {
     for (const field of fields) {
         if (!body[field] || body[field].trim().length === 0) {
