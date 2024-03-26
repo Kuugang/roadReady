@@ -92,17 +92,16 @@
 
 ### Get Dealership
 
-`/buyer/verify`
+`/dealership`
 
 #### Method: GET
 
 ###### Parameters (URL Query Params)
 
 - ` ` - Returns all dealership
-
 - `dealershipId`
-
 - `dealershipName`
+- `latitude` `longitude` `km` -returns dealerships within n _km_ around given location
 
 <hr>
 
