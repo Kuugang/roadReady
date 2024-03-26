@@ -1,35 +1,63 @@
+const path = require("path");
 const { v4: uuidv4, validate } = require('uuid');
 const { db } = require("../config/dbConfig");
 const { supabase, pool } = require("../config/supabaseConfig")
 const asyncHandler = require("express-async-handler");
 
-
-const { collection, documentId, getDocs, getDoc, doc, query, where, addDoc, deleteDoc, updateDoc, queryEqual } = require("firebase/firestore/lite")
-
-
-const { getStorage, ref, getDownloadURL, uploadBytesResumable, list } = require("firebase/storage")
-
-const { validateRequiredFields, queryDatabase } = require("./helper")
+const { validateRequiredFields } = require("./helper")
 const fs = require("fs");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-const storage = getStorage();
+const nodemailer = require("nodemailer");
+const hbs = require('nodemailer-express-handlebars')
+const { google } = require("googleapis");
 
-const adminCol = collection(db, 'admin');
-const listingCol = collection(db, 'listing');
-const buyerCol = collection(db, 'buyer');
-const dealershipCol = collection(db, 'dealership');
-const requestCol = collection(db, 'request');
-const usersCol = collection(db, "users");
+const oAuth2Client = new google.auth.OAuth2(
+    process.env.CLIENT_ID,
+    process.env.CLIENT_SECRET,
+    process.env.REDIRECT_URI
+)
 
+oAuth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 
+async function sendMail(mailOptions,) {
+    try {
+        const accessToken = await oAuth2Client.getAccessToken();
+        const transport = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                type: 'OAuth2',
+                user: 'jakebajo21@gmail.com',
+                clientId: process.env.CLIENT_ID,
+                clientSecret: process.env.CLIENT_SECRET,
+                refreshToken: process.env.REFRESH_TOKEN,
+                accessToken: accessToken
+            }
+        })
+
+        const handlebarOptions = {
+            viewEngine: {
+                partialsDir: path.resolve(__dirname, '../views/'),
+                defaultLayout: false,
+            },
+            viewPath: path.resolve(__dirname, '../views/'),
+        };
+
+        transport.use('compile', hbs(handlebarOptions))
+
+        const result = await transport.sendMail(mailOptions)
+        return result;
+    } catch (error) {
+        return error
+    }
+}
 
 const buyerRegister = asyncHandler(async (req, res) => {
     try {
-
         const requiredFields = ['email', 'password', 'firstName', 'lastName', 'phoneNumber', 'address', 'gender'];
-        validateRequiredFields(requiredFields, req.body, res);
+        const fieldsValidation = validateRequiredFields(requiredFields, req.body, res);
+        if (fieldsValidation) return fieldsValidation
 
         let { email, password, firstName, lastName, phoneNumber, address, gender } = req.body;
 
@@ -62,11 +90,11 @@ const buyerRegister = asyncHandler(async (req, res) => {
     }
 });
 
-
 const dealerRegister = asyncHandler(async (req, res) => {
     try {
         const requiredFields = ['email', 'password', 'firstName', 'lastName', 'phoneNumber', 'address', 'gender', 'dealershipName'];
-        validateRequiredFields(requiredFields, req.body, res);
+        const fieldsValidation = validateRequiredFields(requiredFields, req.body, res);
+        if (fieldsValidation) return fieldsValidation;
 
         let { email, password, firstName, lastName, phoneNumber, address, gender, dealershipName } = req.body;
 
@@ -112,6 +140,8 @@ const dealerRegister = asyncHandler(async (req, res) => {
 });
 
 const login = asyncHandler(async (req, res) => {
+    const fieldsValidation = validateRequiredFields(['email', 'password'], req.body, res)
+    if (fieldsValidation) return fieldsValidation;
     const { email, password } = req.body;
 
     let { data, error } = await supabase.auth.signInWithPassword({
@@ -138,16 +168,23 @@ const login = asyncHandler(async (req, res) => {
         sameSite: 'None',
         secure: true
     });
+    res.cookie('access_token', data.session.access_token, {
+        path: '/',
+        domain: '',
+        sameSime: 'None',
+        secure: true
+    })
 
     user.token = token;
     return res.status(200).json(user);
 });
 
-
 const getUserProfile = asyncHandler(async (req, res) => {
     try {
         const requiredFields = ['userId']
-        validateRequiredFields(requiredFields, req.query, res);
+        const fieldsValidation = validateRequiredFields(requiredFields, req.query, res);
+
+        if (fieldsValidation) return fieldsValidation;
 
         const { userId } = req.query;
 
@@ -189,10 +226,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
             WHERE userid = $${Object.keys(updates).length + 1}
             RETURNING *;
         `;
-
-
         const { rows: userProfile, error: profileError } = await pool.query(updateUserProfileQuery, [...updateValues, req.tokenData.userid]);
-
         if (profileError) {
             await supabase.auth.update({
                 id: req.user.id,
@@ -208,14 +242,70 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     }
 })
 
-//LISTING
+const requestOTPCode = asyncHandler(async (req, res) => {
+    try {
+        const code = Math.floor(1000 + Math.random() * 9000);
+        const { data: { user } } = await supabase.auth.getUser(req.cookies.access_token)
+        const mailOptions = {
+            from: 'Road Ready <jakebajo21@gmail.com>',
+            to: user.email,
+            subject: 'Your OTP Code',
+            template: 'otp',
+            context: {
+                code: code
+            }
+        }
+        await sendMail(mailOptions);
+        let query = "DELETE FROM tblOTP WHERE userId = $1";
+        await pool.query(query, [user.id]);
+        query = "INSERT INTO tblOTP (code, userId, expiredAt) VALUES ($1, $2, $3)"
+        let currentDate = new Date();
+        currentDate.setMinutes(currentDate.getMinutes() + 10);
+        await pool.query(query, [code, user.id, currentDate]);
+        return res.status(200).json({ message: "OTP code sent to your email" })
+    } catch (error) {
+        console.log(error);
+        res.status(500).json(error);
+    }
+})
 
+// for buyer role only
+const verify = asyncHandler(async (req, res) => {
+    try {
+        const fieldsValidation = validateRequiredFields(['code'], req.body, res);
+        if (fieldsValidation) return fieldsValidation;
+        const { code } = req.body;
+
+        const { data: { user }, error } = await supabase.auth.getUser(req.cookies.access_token)
+        let query = "SELECT * FROM tblUserProfile WHERE id = $1";
+        const userProfile = (await pool.query(query, [user.id])).rows[0];
+
+        if (userProfile.role != 'buyer') {
+            return res.sendStatus(401);
+        }
+
+        query = "SELECT * FROM tblOTP WHERE userId = $1";
+        const otp = (await pool.query(query, [user.id])).rows[0];
+        if (otp.code != code) {
+            return res.status(400).send({ message: "Invalid code" })
+        }
+        if (otp.expiredat < new Date()) {
+            return res.status(400).json({ message: "This OTP code has expired please request for another code" });
+        }
+        query = "UPDATE tblUserProfile SET isApproved = TRUE WHERE id = $1";
+        await pool.query(query, [user.id]);
+        return res.status(200).send({ message: "Verification success" })
+    } catch (error) {
+        console.log(error);
+        res.status(500).json(error);
+    }
+})
+//LISTING
 const createListing = asyncHandler(async (req, res) => {
     try {
         const requiredFields = ['modelAndName', 'make', 'fuelType', 'power', 'transmission', 'engine', 'fuelTankCapacity', 'seatingCapacity', 'price', 'dealershipName', 'vehicleType'];
-
-        validateRequiredFields(requiredFields, req.body, res);
-
+        const fieldsValidation = validateRequiredFields(requiredFields, req.body, res);
+        if (fieldsValidation) return fieldsValidation;
         const { modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, dealershipName, vehicleType } = req.body;
 
         let query = "SELECT * FROM tblDealership WHERE name = $1"
@@ -232,32 +322,12 @@ const createListing = asyncHandler(async (req, res) => {
         const { data, error } = await supabase.storage.from('listing').upload(uuidv4(), req.file.buffer, {
             contentType: req.file.mimetype
         });
-
-
         if (error) {
             return res.status(500).json({ success: false, error: error.message });
         }
-
         const imageURL = `https://xjrhebmomygxcafbvlye.supabase.co/storage/v1/object/public/` + data.fullPath;
-        // modelAndName VARCHAR(255) NOT NULL,
-        // make VARCHAR(255) NOT NULL,
-        // fuelType VARCHAR(255) NOT NULL,
-        // power VARCHAR(255) NOT NULL,
-        // transmission VARCHAR(255) NOT NULL,
-        // engine VARCHAR(255) NOT NULL,
-        // fuelTankCapacity VARCHAR(255) NOT NULL,
-        // seatingCapacity VARCHAR(255) NOT NULL,
-        // price INT NOT NULL,
-        // vehicleType VARCHAR(255) NOT NULL,
-        // image VARCHAR(255) NOT NULL,
-        // dealership UUID,
-        // dealershipAgent VARCHAR,
         query = "INSERT INTO tblListing (modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, vehicleType, image, dealership, dealershipAgent) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *";
-
         let newListing = (await pool.query(query, [modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, vehicleType, imageURL, dealership.id, req.tokenData.id]));
-
-        // console.log(newListing)
-
         return res.status(200).json({ "message": "Successfully listed vehicle" });
     } catch (error) {
         console.error("Error:", error);
@@ -403,7 +473,8 @@ const getDealership = asyncHandler(async (req, res) => {
 })
 
 const deleteListing = asyncHandler(async (req, res) => {
-    validateRequiredFields(['listingId'], req.body, res);
+    const fieldsValidation = validateRequiredFields(['listingId'], req.body, res);
+    if (fieldsValidation) return fieldsValidation;
     try {
         let query = "DELETE FROM tblListing WHERE id = $1 AND dealershipagent = $2"
         await (pool.query(query, [listingId, req.tokenData.id]));
@@ -416,7 +487,8 @@ const deleteListing = asyncHandler(async (req, res) => {
 
 const createCashApplicationRequest = asyncHandler(async (req, res) => {
     const requiredFields = ['listingId'];
-    validateRequiredFields(requiredFields, req.body, res);
+    const fieldsValidation = validateRequiredFields(requiredFields, req.body, res);
+    if (fieldsValidation) return fieldsValidation;
     const { listingId } = req.body;
 
 
@@ -466,7 +538,8 @@ const createCashApplicationRequest = asyncHandler(async (req, res) => {
 const createInstallmentApplicationRequest = asyncHandler(async (req, res) => {
     try {
         const requiredFields = ['listingId', 'coMakerFirstName', 'coMakerLastName', 'coMakerPhoneNumber'];
-        validateRequiredFields(requiredFields, req.body, res);
+        const fieldsValidation = validateRequiredFields(requiredFields, req.body, res);
+        if (fieldsValidation) return fieldsValidation;
 
         const { listingId, coMakerFirstName, coMakerLastName, coMakerPhoneNumber } = req.body;
 
@@ -560,7 +633,6 @@ const createInstallmentApplicationRequest = asyncHandler(async (req, res) => {
 })
 
 const createVehicle = async (listing, buyerId) => {
-
     const { modelandname, make, fueltype, power, transmission, engine, fueltankcapacity, seatingcapacity, price, vehicletype, image, dealership, dealershipagent } = listing;
     let query = "INSERT INTO tblVehicle (id, userId, modelAndName, make, fuelType, power, transmission, engine, fuelTankCapacity, seatingCapacity, price, vehicleType, image) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *";
     const vehicle = (await (pool.query(query, [listing.id, buyerId, modelandname, make, fueltype, power, transmission, engine, fueltankcapacity, seatingcapacity, price, vehicletype, image]))).rows[0];
@@ -571,17 +643,21 @@ const createVehicle = async (listing, buyerId) => {
 
 const updateApplicationRequest = asyncHandler(async (req, res) => {
     try {
+        const fieldsValidation = validateRequiredFields(['progress, listingId'], req.body, res);
+        if (fieldsValidation) return fieldsValidation;
         const { cashApplicationRequest, installmentApplicationRequest, progress, listingId } = req.body;
         //progress 1-5;
         //should be an authorized agent and should be "employed" in the dealership
 
-        let query = "SELECT * FROM tblListing WHERE id = $1";
+        let query = "SELECT * FROM tblDealershipAgent WHERE id = $1 AND isAuthorized = true";
+        const agent = (await pool.query(query, [req.tokenData.id])).rows[0];
+        if (!agent) return res.sendStatus(401);
+
+        query = "SELECT * FROM tblListing WHERE id = $1";
         const listing = (await pool.query(query, [listingId])).rows[0];
         if (!listing) return res.status(404).json({ message: "listing not found" });
         if (listing.dealershipagent != req.tokenData.id) return res.sendStatus(401);
 
-
-        if (!progress) return res.status(400).json({ message: "progress is required" });
         if (cashApplicationRequest) {
             let query = "UPDATE tblCashApplicationRequest SET progress = $1 RETURNING *";
             const applicationRequest = (await pool.query(query, [progress])).rows[0];
@@ -623,7 +699,8 @@ const updateApplicationRequest = asyncHandler(async (req, res) => {
 
 const updateRegistrationRequest = asyncHandler(async (req, res) => {
     try {
-        validateRequiredFields(['registrationRequestId', 'progress'], req.body, res);
+        const fieldsValidation = validateRequiredFields(['registrationRequestId', 'progress'], req.body, res);
+        if (fieldsValidation) return fieldsValidation;
         const { registrationRequestId, progress } = req.body;
 
         let query = "UPDATE tblRegistrationRequest SET progress = $1 WHERE id = $2 AND dealershipagent = $3 RETURNING *";
@@ -651,22 +728,43 @@ const updateRegistrationRequest = asyncHandler(async (req, res) => {
 })
 
 
-//admin
-
-const updateUserPrivilege = asyncHandler(async (req, res) => {
+//dealershipManager
+const updateAgentStatus = asyncHandler(async (req, res) => {
     try {
-        validateRequiredFields(['role'], req.body, res);
+        const fieldsValidation = validateRequiredFields(['agentId', 'isApproved'], req.body, res);
+        const { agentId, isApproved } = req.body;
+        if (fieldsValidation) return fieldsValidation;
 
-        let query = "UPDATE tblUserProfile SET role = $1";
-        await (pool.quey(query, [role]));
-        return res.status(200).json({ message: "successfully updated user role" });
+        let query = "UPDATE tblDealershipAgent SET isAuthorized = $1 WHERE id = $2";
+        await pool.query(query, [isApproved, agentId]);
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json(error)
+    }
+});
+//admin
+const updateUserStatus = asyncHandler(async (req, res) => {
+    try {
+        const fieldsValidation = validateRequiredFields(['userId', 'isApproved'], req.body, res);
+        if (fieldsValidation) return fieldsValidation;
+        const { userId, isApproved } = req.body;
+
+        let query = "SELECT * FROM tblUserProfile WHERE id = $1";
+        const user = (await pool.query(query, [userId])).rows[0];
+
+        if (user.role == "dealershipAgent") {
+            query = "UPDATE tblDealershipAgent SET isAuthorized = $1 WHERE id = $2";
+            await pool.query(query, [isApproved, userId]);
+        }
+
+        query = "UPDATE tblUserProfile SET isApproved = $1 WHERE id = $2";
+        await pool.query(query, [isApproved, userId]);
+        return res.status(200).json({ message: "successfully updated user status" });
     } catch (error) {
         console.log(error)
         return res.status(500).json(error)
     }
 })
-
-
 
 
 //--------------------
@@ -686,14 +784,16 @@ const requestDealershipManagerPrivilege = asyncHandler(async (req, res) => {
     }
 })
 
-
-
 const getUsers = asyncHandler(async (req, res) => {
-    const usersSnapshot = await getDocs(buyerCol);
-    const usersList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    return res.status(200).json(usersList);
+    try {
+        let query = "SELECT * FROM tblUserProfile";
+        const users = (await pool.query(query)).rows;
+        return res.status(200).json(users);
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json(error);
+    }
 })
-
 
 module.exports = {
     buyerRegister,
@@ -707,19 +807,27 @@ module.exports = {
 
     createCashApplicationRequest,
     createInstallmentApplicationRequest,
-    updateApplicationRequest,
-    updateRegistrationRequest,
-
-    // updateBuyerUserProfile,
-    // updateDealerAgentUserProfile,
 
 
     createListing,
     deleteListing,
+    updateApplicationRequest,
+    updateRegistrationRequest,
+
+    requestOTPCode,
+    verify,
+
+    //dealershipManager
+    updateAgentStatus,
+    //admin
+    updateUserStatus,
+    // updateBuyerUserProfile,
+    // updateDealerAgentUserProfile,
+
+
 
     requestDealershipManagerPrivilege,
 
-    updateUserPrivilege,
 
     getListing,
 

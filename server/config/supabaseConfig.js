@@ -50,6 +50,7 @@ const initializeDatabase = async () => {
             address VARCHAR(255),
             gender gender,
             role role NOT NULL,
+            isApproved BOOLEAN DEFAULT FALSE NOT NULL,
 
             createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             updatedAt TIMESTAMPTZ
@@ -192,7 +193,7 @@ const initializeDatabase = async () => {
             createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             updatedAt TIMESTAMPTZ,
 
-            FOREIGN KEY (userId) REFERENCES tblUserProfile(id)
+            FOREIGN KEY (userId) REFERENCES tblUserProfile(id) ON DELETE CASCADE
         )`;
 
         await pool.query(createVehicleTable);
@@ -208,13 +209,28 @@ const initializeDatabase = async () => {
             createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             updatedAt TIMESTAMPTZ,
 
-            FOREIGN KEY (vehicleId) REFERENCES tblVehicle(id),
-            FOREIGN KEY (listingId) REFERENCES tblListing (id),
-            FOREIGN KEY (dealership) REFERENCES tblDealership (id),
+            FOREIGN KEY (vehicleId) REFERENCES tblVehicle(id) ON DELETE CASCADE,
+            FOREIGN KEY (listingId) REFERENCES tblListing (id) ON DELETE CASCADE,
+            FOREIGN KEY (dealership) REFERENCES tblDealership (id) ON DELETE CASCADE,
             FOREIGN KEY (dealershipAgent) REFERENCES tblUserProfile (id)
         )`;
 
         await pool.query(createRegistrationRequestTable);
+
+
+        let createOTPTable = `CREATE TABLE IF NOT EXISTS tblOTP(
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            userId UUID NOT NULL,
+            code INT NOT NULL,
+
+            createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            expiredAt TIMESTAMPTZ NOT NULL,
+            isUsed BOOLEAN DEFAULT FALSE,
+
+            FOREIGN KEY (userId) REFERENCES tblUserProfile (id)
+        )`;
+
+        await pool.query(createOTPTable);
 
         console.log("Connected to postgres database")
     } catch (e) {

@@ -19,8 +19,9 @@ const verifyToken = async (req, res, next, privileges) => {
         // }
 
         const payload = jwt.verify(token, process.env.JWT_SECRET);
-
-
+        if (payload.isapproved == false) {
+            return res.status(401).send("Unauthorized");
+        }
         if (!privileges.includes(payload.role)) {
             return res.status(401).send("Unauthorized");
         }
@@ -37,7 +38,7 @@ const verifyDealershipAgentToken = async (req, res, next) => {
 };
 
 const verifyDealerManagerToken = async (req, res, next) => {
-    await verifyToken(req, res, next, ["dealerManager"]);
+    await verifyToken(req, res, next, ["dealershipManager"]);
 };
 
 const verifyBuyerToken = async (req, res, next) => {

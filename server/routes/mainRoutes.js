@@ -10,7 +10,8 @@ const {
     verifyDealershipAgentToken,
     verifyBuyerToken,
     verifyAdminToken,
-    verifyRole
+    verifyRole,
+    verifyDealerManagerToken
 } = require("../controllers/middlewares")
 
 const {
@@ -20,6 +21,9 @@ const {
 
     getUserProfile,
     updateUserProfile,
+
+    requestOTPCode,
+    verify,
 
     createListing,
     deleteListing,
@@ -33,16 +37,13 @@ const {
     updateRegistrationRequest,
 
 
+    //dealershipmanager
+    updateAgentStatus,
 
-    //wala pani
-    requestDealershipManagerPrivilege,
+    //admin
+    updateUserStatus,
     getUsers,
-    getUser,
-    updateUserPrivilege,
 } = require("../controllers/mainController");
-
-
-router.route("/").get(getUsers);
 
 //REGISTER
 router.route("/buyer/register").post(buyerRegister);
@@ -56,21 +57,19 @@ router.route("/user/profile").get(getUserProfile);
 
 //UPDATE PROFILE
 router.route("/user/profile").put(verifyRole, updateUserProfile);
+router.route("/user/otp").get(requestOTPCode);
+router.route("/buyer/verify").post(verify);
 
 router.route("/dealership").get(getDealership);
 
 //returns listing based on string query, returns listing regardless if available of not
 router.route("/listing").get(getListing);
 
-//lists a vehicle, dealer agent must be authorized to list under that dealership
-router.route("/dealershipagent/list").post(upload.single("image"), verifyDealershipAgentToken, createListing);
-
 const cashPaymentUpload = upload.fields([
     { name: 'signature' },
     { name: 'validId' }
 ])
 router.route("/buyer/apply/cash").post(cashPaymentUpload, verifyBuyerToken, createCashApplicationRequest);
-
 const installmentPaymentUpload = upload.fields([
     { name: 'buyerValidId', maxCount: 1 },
     { name: 'buyerSignature', maxCount: 1 },
@@ -78,20 +77,18 @@ const installmentPaymentUpload = upload.fields([
     { name: 'coMakerSignature', maxCount: 1 }
 ]);
 router.route("/buyer/apply/installment").post(installmentPaymentUpload, verifyBuyerToken, createInstallmentApplicationRequest);
+
+//dealershipAgent routes
+router.route("/dealershipagent/listing").post(upload.single("image"), verifyDealershipAgentToken, createListing);
 router.route("/dealershipagent/application").put(verifyDealershipAgentToken, updateApplicationRequest);
 router.route("/dealershipagent/registration").put(verifyDealershipAgentToken, updateRegistrationRequest);
 
+//dealershipManager routes
+router.route("/dealershipmanager/agent").put(verifyDealerManagerToken, updateAgentStatus)
 
+//admin
+router.route("/admin/users/status").put(verifyAdminToken, updateUserStatus);
+router.route("/admin/users").get(verifyAdminToken, getUsers);
 
-
-//wala pani
-router.route("/dealer/list").delete(verifyDealershipAgentToken, deleteListing);
-
-
-router.route("/request/1").post(verifyDealershipAgentToken, requestDealershipManagerPrivilege);
-
-router.route("/admin/users/update").put(verifyAdminToken, updateUserPrivilege);
-
-// router.route("/user").get(getUser);
 
 module.exports = router;
