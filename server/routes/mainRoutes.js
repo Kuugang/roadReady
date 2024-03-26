@@ -58,7 +58,7 @@ router.route("/user/profile").get(getUserProfile);
 //UPDATE PROFILE
 router.route("/user/profile").put(verifyRole, updateUserProfile);
 router.route("/user/otp").get(requestOTPCode);
-router.route("/user/otp").post(verify);
+router.route("/buyer/verify").post(verify);
 
 router.route("/dealership").get(getDealership);
 

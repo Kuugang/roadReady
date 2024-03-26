@@ -731,7 +731,10 @@ const updateRegistrationRequest = asyncHandler(async (req, res) => {
 //dealershipManager
 const updateAgentStatus = asyncHandler(async (req, res) => {
     try {
+        const fieldsValidation = validateRequiredFields(['agentId', 'isApproved'], req.body, res);
         const { agentId, isApproved } = req.body;
+        if (fieldsValidation) return fieldsValidation;
+
         let query = "UPDATE tblDealershipAgent SET isAuthorized = $1 WHERE id = $2";
         await pool.query(query, [isApproved, agentId]);
     } catch (error) {
