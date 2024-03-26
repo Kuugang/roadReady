@@ -223,10 +223,10 @@ const updateUserProfile = asyncHandler(async (req, res) => {
         const updateUserProfileQuery = `
             UPDATE tblUserProfile 
             SET ${Object.keys(updates).map((key, index) => `${key} = ${updatePlaceholders[index]}`).join(', ')}
-            WHERE userid = $${Object.keys(updates).length + 1}
+            WHERE id = $${Object.keys(updates).length + 1}
             RETURNING *;
         `;
-        const { rows: userProfile, error: profileError } = await pool.query(updateUserProfileQuery, [...updateValues, req.tokenData.userid]);
+        const { rows: userProfile, error: profileError } = await pool.query(updateUserProfileQuery, [...updateValues, req.tokenData.id]);
         if (profileError) {
             await supabase.auth.update({
                 id: req.user.id,
@@ -484,6 +484,47 @@ const deleteListing = asyncHandler(async (req, res) => {
         return res.status(500).json(error);
     }
 });
+
+const updateListing = asyncHandler(async (req, res) => {
+    try {
+        const fieldsValidation = validateRequiredFields(['listingId'], req.body, res);
+        if (fieldsValidation) return fieldsValidation;
+
+        const { listingId } = req.body;
+        const updateFields = ['modelAndName', 'make', 'fuelType', 'power', 'transmission', 'engine', 'fuelTankCapacity', 'seatingCapacity', 'price', 'vehicleType'];
+
+        const updates = {};
+        updateFields.forEach(field => {
+            if (req.body[field]) {
+                updates[field] = req.body[field];
+            }
+        });
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ error: 'No fields to update' });
+        }
+
+        const updateValues = Object.values(updates);
+        const updatePlaceholders = Object.keys(updates).map((_, index) => `$${index + 1}`);
+
+        let query = `
+            UPDATE tblListing 
+            SET ${Object.keys(updates).map((key, index) => `${key} = ${updatePlaceholders[index]}`).join(', ')}
+            WHERE id = $${Object.keys(updates).length + 1} AND dealershipAgent = $${Object.keys(updates).length + 2}
+            RETURNING *;
+        `;
+
+
+        const updatedRow = (await pool.query(query, [...updateValues, listingId, req.tokenData.id])).rows[0];
+        if (!updatedRow) return res.sendStatus(401);
+        return res.status(200).json({ message: "updated listing succesfully" });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json(error);
+    }
+});
+
+
 
 const createCashApplicationRequest = asyncHandler(async (req, res) => {
     const requiredFields = ['listingId'];
@@ -811,6 +852,7 @@ module.exports = {
 
     createListing,
     deleteListing,
+    updateListing,
     updateApplicationRequest,
     updateRegistrationRequest,
 
@@ -827,7 +869,6 @@ module.exports = {
 
 
     requestDealershipManagerPrivilege,
-
 
     getListing,
 

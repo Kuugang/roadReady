@@ -26,6 +26,7 @@ const {
     verify,
 
     createListing,
+    updateListing,
     deleteListing,
     getListing,
 
@@ -80,6 +81,11 @@ router.route("/buyer/apply/installment").post(installmentPaymentUpload, verifyBu
 
 //dealershipAgent routes
 router.route("/dealershipagent/listing").post(upload.single("image"), verifyDealershipAgentToken, createListing);
+
+//todo can also update the picture
+router.route("/dealershipagent/listing").put(verifyDealershipAgentToken, updateListing);
+router.route("/dealershipagent/listing").delete(verifyDealershipAgentToken, deleteListing);
+
 router.route("/dealershipagent/application").put(verifyDealershipAgentToken, updateApplicationRequest);
 router.route("/dealershipagent/registration").put(verifyDealershipAgentToken, updateRegistrationRequest);
 

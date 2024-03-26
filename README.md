@@ -181,11 +181,35 @@
 
 ### DELETE LISTING
 
+`/dealershipagent/listing`
+
+#### Method: DELETE
+
+###### Parameters (URL Encoded)
+
+- `listingId` \*
+
 <hr>
 
-# TODO
-
 ### UPDATE LISTING
+
+`/dealershipagent/listing`
+
+#### Method: PUT
+
+###### Parameters (URL Encoded)
+
+- `listingId` \*
+- `modelAndName`,
+- `make`
+- `fuelType`
+- `power`
+- `transmission`
+- `engine`
+- `fuelTankCapacity`
+- `seatingCapacity`
+- `price`
+- `vehicleType`
 
 <hr>
 
