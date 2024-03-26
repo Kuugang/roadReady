@@ -1,5 +1,6 @@
 const path = require("path");
 const { v4: uuidv4, validate } = require('uuid');
+const { supabase, pool } = require("../config/supabaseConfig")
 const asyncHandler = require("express-async-handler");
 
 const { validateRequiredFields } = require("./helper")
