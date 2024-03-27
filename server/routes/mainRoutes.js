@@ -95,11 +95,17 @@ router.get('/auth/google/callback',
     passport.authenticate('google', {
         successRedirect: '/auth/google/success',
         failureRedirect: '/auth/google/failure'
-    }),
-    (req, res, next) => {
-        return res.redirect('/log')
-    }
+    })
 );
+
+router.get('/auth/google/success', (req, res) => {
+    res.send('Google authentication successful!');
+});
+
+router.get('/auth/google/failure', (req, res) => {
+    res.send('Google authentication failed!');
+});
+
 
 
 //REGISTER
