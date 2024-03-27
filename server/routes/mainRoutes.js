@@ -9,6 +9,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const GoogleStrategy = require('passport-google-oauth2').Strategy;
 const passport = require("passport");
+const { pool } = require("../config/supabaseConfig")
 
 
 
@@ -83,7 +84,14 @@ passport.use(
                 // `;
 
                 // const user = (await pool.query(query, [uuidv4(), profile, "lastName", '099123', 'testadress', 'male'])).rows[0];
-                done(null, 0);
+                let query = "SELECT * FROM tblUserProfile WHERE firstName = $1";
+
+                const user = (await pool.query(query, ['Jake'])).rows[0];
+                if (user) {
+                    done(null, user);
+                } else {
+                    done(null, false, { message: 'User not found' });
+                }
             } catch (error) {
                 console.error(error)
             }
