@@ -13,15 +13,16 @@ module.exports = function (passport) {
                 passReqToCallback: true
             },
             async (accessToken, refreshToken, profile, done) => {
-                const newUser = {
-                    googleId: profile.id,
-                    displayName: profile.displayName,
-                    firstName: profile.name.givenName,
-                    lastName: profile.name.familyName,
-                    image: profile.photos[0].value,
-                    email: profile.emails[0].value
-                }
                 try {
+                    const newUser = {
+                        googleId: profile.id,
+                        displayName: profile.displayName,
+                        firstName: profile.name.givenName,
+                        lastName: profile.name.familyName,
+                        image: profile.photos[0].value,
+                        email: profile.emails[0].value
+                    }
+
                     const query = `
                     INSERT INTO tblUserProfile (id, firstname, lastname, phonenumber, address, gender, role)
                     VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
