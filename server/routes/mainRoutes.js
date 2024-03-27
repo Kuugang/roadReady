@@ -62,7 +62,7 @@ router.get(
                     RETURNING *;
                     `;
         await pool.query(query, [uuidv4(), "firstName", "lastName", '099123', 'testadress', 'male']);
-        res.redirect('/log')
+        return res.status(200).json({ status: true, message: "Successfully logged in or register" });
     }
 )
 

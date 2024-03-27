@@ -21,30 +21,30 @@ module.exports = function (passport) {
                 //     image: profile.photos[0].value,
                 //     email: profile.emails[0].value
                 // }
-
-                const query = `
+                try {
+                    const query = `
                     INSERT INTO tblUserProfile (id, firstname, lastname, phonenumber, address, gender, role)
                     VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
                     RETURNING *;
                     `;
 
-                await pool.query(query, [uuidv4(), "firstName", "lastName", '099123', 'testadress', 'male']);
+                    const user = (await pool.query(query, [uuidv4(), "firstName", "lastName", '099123', 'testadress', 'male'])).rows[0];
 
-                done(null, "1");
+                    done(null, user);
+                } catch (error) {
+                    console.error(error)
+                }
             }
         )
     )
 
     // used to serialize the user for the session
     passport.serializeUser((user, done) => {
-        done(null, "1")
+        done(null, user.id)
     })
 
     // used to deserialize the user
     passport.deserializeUser((id, done) => {
-        done(err, "test");
-        // User.findById(id, (err, user) => {
-        //     done(err, user);
-        // });
+        done(err, id);
     })
 }
