@@ -9,8 +9,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import EditProfile from "@/components/modals/edit-profile";
 
 export default function Profile() {
+  // TODO: finish profilelol
   return (
     <div className="h-full w-full">
       <div className="w-full h-44 bg-gray-200">Image</div>
@@ -63,7 +65,7 @@ export default function Profile() {
             </TableBody>
           </Table>
 
-          <Button>Edit</Button>
+          <EditProfile />
         </div>
       </div>
     </div>

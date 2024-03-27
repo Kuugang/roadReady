@@ -25,21 +25,7 @@ import {
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Separator } from "@/components/ui/separator";
-import { Gender } from "@/types/types";
-
-const formSchema = z.object({
-  firstname: z.string().min(2).max(20),
-  lastname: z.string().min(2).max(20),
-  email: z.string().email(),
-  gender: z.nativeEnum(Gender),
-  phonenumber: z.string().min(6).max(10),
-  password: z.string(),
-  address: z.string(),
-  bankAddress: z.string(),
-  // FIX: i dont know if sakto bani
-  employeeId: z.string(),
-});
+import { Gender, formSchema } from "@/types/types";
 
 export default function RegisterBank() {
   const form = useForm<z.infer<typeof formSchema>>({
@@ -70,7 +56,7 @@ export default function RegisterBank() {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
-            <div className="flex">
+            <div className="flex gap-2">
               <FormField
                 control={form.control}
                 name="firstname"
@@ -84,6 +70,7 @@ export default function RegisterBank() {
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="lastname"
@@ -98,6 +85,7 @@ export default function RegisterBank() {
                 )}
               />
             </div>
+
             <FormField
               control={form.control}
               name="email"
@@ -115,6 +103,7 @@ export default function RegisterBank() {
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="gender"
@@ -123,24 +112,30 @@ export default function RegisterBank() {
                   <FormLabel>Gender</FormLabel>
                   <FormControl>
                     <RadioGroup
+                      onValueChange={field.onChange}
                       className="flex justify-evenly w-full"
+                      defaultValue={Gender.MALE}
                       {...field}
-                      defaultValue="male"
                     >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="male" id="male" />
-                        <Label htmlFor="male">Male</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="female" id="female" />
-                        <Label htmlFor="female">Female</Label>
-                      </div>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value={Gender.MALE} />
+                        </FormControl>
+                        <FormLabel className="font-normal">Male</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value={Gender.FEMALE} />
+                        </FormControl>
+                        <FormLabel className="font-normal">Female</FormLabel>
+                      </FormItem>
                     </RadioGroup>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="phonenumber"
@@ -154,6 +149,7 @@ export default function RegisterBank() {
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="address"
@@ -167,6 +163,7 @@ export default function RegisterBank() {
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="bankAddress"
@@ -180,6 +177,7 @@ export default function RegisterBank() {
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="employeeId"
@@ -193,6 +191,7 @@ export default function RegisterBank() {
                 </FormItem>
               )}
             />
+
             <Button type="submit">Sign Up</Button>
           </form>
         </Form>

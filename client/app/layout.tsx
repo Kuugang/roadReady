@@ -27,7 +27,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ModalProvider />
+          {/* TODO: unsure if we go this method or just add the things in each respective place using shadcn */}
+          {/* <ModalProvider /> */}
           {children}
         </ThemeProvider>
       </body>

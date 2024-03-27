@@ -2,7 +2,7 @@ import Submission from "@/components/dashboard/submission";
 
 export default function Home() {
   return (
-    <main className="p-10 bg-green-900 h-full w-full">
+    <main className="p-10 h-full w-full">
       <div>
         <h2>Welcome Spery John</h2>
         {/* TODO: search here*/}

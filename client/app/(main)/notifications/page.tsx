@@ -44,5 +44,6 @@ const notifications: Notification[] = [
 ];
 
 export default function Notification() {
+  // TODO: finish this
   return <div>Notification</div>;
 }
