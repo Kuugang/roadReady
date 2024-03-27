@@ -29,20 +29,21 @@ module.exports = function (passport) {
 
                 await pool.query(query, [newUser.id, newUser.firstName, newUser.lastName, '099123', 'testadress', 'male', 'buyer']);
 
-                done(null, newUser.googleId);
+                done(null, "1");
             }
         )
     )
 
     // used to serialize the user for the session
     passport.serializeUser((user, done) => {
-        done(null, user.id)
+        done(null, "1")
     })
 
     // used to deserialize the user
     passport.deserializeUser((id, done) => {
-        User.findById(id, (err, user) => {
-            done(err, user);
-        });
+        done(err, "test");
+        // User.findById(id, (err, user) => {
+        //     done(err, user);
+        // });
     })
 }
