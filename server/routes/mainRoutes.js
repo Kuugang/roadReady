@@ -55,14 +55,10 @@ router.get(
         successRedirect: '/auth/google/success',
         failureRedirect: '/auth/google/failure'
     }),
-    async (req, res, next) => {
-        return res.status(200).json({ status: true, message: "Successfully logged in or register" });
-    }
+    // async (req, res, next) => {
+    //     return res.status(200).json({ status: true, message: "Successfully logged in or register" });
+    // }
 )
-
-
-
-
 
 
 
