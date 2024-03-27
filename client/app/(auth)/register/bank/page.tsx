@@ -3,7 +3,7 @@
 import React from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -26,8 +26,12 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Gender, formSchema } from "@/types/types";
+import { useModalStore } from "@/store/modals";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 export default function RegisterBank() {
+  const { onOpen } = useModalStore();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -45,6 +49,7 @@ export default function RegisterBank() {
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     console.log(values);
+    onOpen("otp");
   }
 
   return (
@@ -200,9 +205,12 @@ export default function RegisterBank() {
       <CardFooter>
         <p>
           Already have an account?
-          <Button variant={"link"} className="px-2">
+          <Link
+            href={"/login"}
+            className={cn(buttonVariants({ variant: "link" }), "px-2")}
+          >
             Login now
-          </Button>
+          </Link>
         </p>
       </CardFooter>
     </Card>

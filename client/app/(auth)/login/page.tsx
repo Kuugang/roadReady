@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -24,6 +24,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 const formSchema = z.object({
   email: z.string().email(),
@@ -95,9 +97,12 @@ export default function Login() {
       <CardFooter>
         <p>
           Don&apos;t have an account yet?
-          <Button variant={"link"} className="px-2">
+          <Link
+            href={"/register"}
+            className={cn(buttonVariants({ variant: "link" }), "px-2")}
+          >
             Register now
-          </Button>{" "}
+          </Link>
         </p>
       </CardFooter>
     </Card>

@@ -12,12 +12,15 @@ import {
   InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { useModalStore } from "@/store/modals";
 
 import React from "react";
 
 export default function OTP() {
+  const { onClose } = useModalStore();
+
   return (
-    <Dialog>
+    <Dialog onOpenChange={onClose} defaultOpen>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Enter OTP</DialogTitle>
