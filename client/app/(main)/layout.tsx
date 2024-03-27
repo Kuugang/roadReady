@@ -12,7 +12,7 @@ export default function RootLayout({
 }>) {
   return (
     <ResizablePanelGroup className="h-full" direction="horizontal">
-      <ResizablePanel className="h-full">
+      <ResizablePanel className="h-full" defaultSize={20}>
         <Sidebar />
       </ResizablePanel>
       <ResizableHandle />
