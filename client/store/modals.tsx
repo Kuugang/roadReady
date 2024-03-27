@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type ModalType = "editProfile";
+export type ModalType = "editProfile" | "otp";
 
 interface ModalState {
   type: ModalType | null;
@@ -9,7 +9,7 @@ interface ModalState {
   onClose: () => void;
 }
 
-const useModalStore = create<ModalState>((set) => ({
+export const useModalStore = create<ModalState>((set) => ({
   type: null,
   isOpen: false,
   onOpen: (type) => set({ isOpen: true, type }),

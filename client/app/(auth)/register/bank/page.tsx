@@ -199,10 +199,10 @@ export default function RegisterBank() {
 
       <CardFooter>
         <p>
-          Don&apos;t have an account yet?
+          Already have an account?
           <Button variant={"link"} className="px-2">
-            Register now
-          </Button>{" "}
+            Login now
+          </Button>
         </p>
       </CardFooter>
     </Card>

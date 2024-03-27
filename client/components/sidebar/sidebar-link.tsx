@@ -6,21 +6,25 @@ import {
 } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface LinkProps {
+  Icon: LucideIcon;
   label: string;
   href?: string;
 }
 
-export default function SidebarLink({ label, href }: LinkProps) {
+export default function SidebarLink({ Icon, label, href }: LinkProps) {
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <Link
-            className={buttonVariants({ variant: "ghost" })}
+            className={cn(buttonVariants({ variant: "ghost" }), "flex gap-3")}
             href={href || label}
           >
+            <Icon />
             {label}
           </Link>
         </TooltipTrigger>

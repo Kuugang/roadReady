@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import {
   Table,
@@ -10,8 +12,11 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import EditProfile from "@/components/modals/edit-profile";
+import { useModalStore } from "@/store/modals";
 
 export default function Profile() {
+  const { onOpen } = useModalStore();
+
   // TODO: finish profilelol
   return (
     <div className="h-full w-full">
@@ -65,7 +70,7 @@ export default function Profile() {
             </TableBody>
           </Table>
 
-          <EditProfile />
+          <Button onClick={() => onOpen("editProfile")}>Edit Profile</Button>
         </div>
       </div>
     </div>

@@ -26,8 +26,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Gender, formSchema } from "@/types/types";
 import { z } from "zod";
+import { useModalStore } from "@/store/modals";
 
 export default function EditProfile() {
+  const { onClose } = useModalStore();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -45,13 +47,11 @@ export default function EditProfile() {
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     console.log(values);
+    onClose();
   }
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button>Edit Profile</Button>
-      </DialogTrigger>
+    <Dialog onOpenChange={onClose} defaultOpen>
       <DialogContent className="">
         <DialogHeader>
           <DialogTitle>Edit profile</DialogTitle>
