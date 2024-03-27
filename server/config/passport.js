@@ -29,6 +29,8 @@ module.exports = function (passport) {
 
                 await pool.query(query, [newUser.id, newUser.firstName, newUser.lastName, '099123', 'testadress', 'male', 'buyer']);
 
+                done(null, newUser.id);
+
                 // try {
                 //     //find the user in our database 
                 //     let user = await User.findOne({ googleId: profile.id })
