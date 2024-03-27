@@ -25,13 +25,13 @@ module.exports = function (passport) {
                     //     email: profile.emails[0].value
                     // }
 
-                    const query = `
-                    INSERT INTO tblUserProfile (id, firstname, lastname, phonenumber, address, gender, role)
-                    VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
-                    RETURNING *;
-                    `;
+                    // const query = `
+                    // INSERT INTO tblUserProfile (id, firstname, lastname, phonenumber, address, gender, role)
+                    // VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
+                    // RETURNING *;
+                    // `;
 
-                    const user = (await pool.query(query, [uuidv4(), profile, "lastName", '099123', 'testadress', 'male'])).rows[0];
+                    // const user = (await pool.query(query, [uuidv4(), profile, "lastName", '099123', 'testadress', 'male'])).rows[0];
 
                 } catch (error) {
                     console.error(error)
