@@ -9,7 +9,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const GoogleStrategy = require('passport-google-oauth2').Strategy;
 const passport = require("passport");
-const { pool } = require("../config/supabaseConfig")
+const { supabase, pool } = require("../config/supabaseConfig")
 
 
 const {
@@ -78,6 +78,12 @@ passport.use(
     },
         async function (request, accessToken, refreshToken, profile, done) {
             console.log(profile);
+
+            let { data, error } = await supabase.auth.signInWithPassword({
+                email: email,
+                password: password
+            })
+
             let query = "SELECT * FROM tblUserProfile WHERE firstName = $1";
             const user = (await pool.query(query, ['Jake'])).rows[0];
             console.log(user);
