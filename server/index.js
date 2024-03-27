@@ -16,7 +16,7 @@ app.use(passport.session())
 app.use(
     cors({
         origin:
-            process.env.node_env = "production" ? "https://roadreadya-api.vercel.app" : "http://localhost:3000", credentials: true, exposedHeaders: ["Authorization"]
+            process.env.node_env = "production" ? "" : "http://localhost:3000", credentials: true, exposedHeaders: ["Authorization"]
     }))
 
 app.use(cookieParser());

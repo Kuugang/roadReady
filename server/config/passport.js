@@ -29,25 +29,7 @@ module.exports = function (passport) {
 
                 await pool.query(query, [newUser.id, newUser.firstName, newUser.lastName, '099123', 'testadress', 'male', 'buyer']);
 
-                done(null, newUser.id);
-
-                // try {
-                //     //find the user in our database 
-                //     let user = await User.findOne({ googleId: profile.id })
-
-                //     if (user) {
-                //         //If user present in our database.
-                //         done(null, user)
-                //     } else {
-                //         // if user is not preset in our database save user data to database.
-                //         user = await User.create(newUser)
-                //         done(null, user)
-                //     }
-                // } catch (err) {
-                //     console.error(err)
-                // }
-
-
+                done(null, newUser.googleId);
             }
         )
     )
