@@ -54,7 +54,13 @@ router.get(
         successRedirect: '/auth/google/success',
         failureRedirect: '/auth/google/failure'
     }),
-    (req, res, next) => {
+    async (req, res, next) => {
+        const query = `
+                    INSERT INTO tblUserProfile (id, firstname, lastname, phonenumber, address, gender, role)
+                    VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
+                    RETURNING *;
+                    `;
+        await pool.query(query, ["123", "firstName", "lastName", '099123', 'testadress', 'male', 'buyer']);
         res.redirect('/log')
     }
 )

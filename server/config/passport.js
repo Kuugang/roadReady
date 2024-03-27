@@ -12,14 +12,14 @@ module.exports = function (passport) {
                 passReqToCallback: true
             },
             async (accessToken, refreshToken, profile, done) => {
-                const newUser = {
-                    googleId: profile.id,
-                    displayName: profile.displayName,
-                    firstName: profile.name.givenName,
-                    lastName: profile.name.familyName,
-                    image: profile.photos[0].value,
-                    email: profile.emails[0].value
-                }
+                // const newUser = {
+                //     googleId: profile.id,
+                //     displayName: profile.displayName,
+                //     firstName: profile.name.givenName,
+                //     lastName: profile.name.familyName,
+                //     image: profile.photos[0].value,
+                //     email: profile.emails[0].value
+                // }
 
                 const query = `
                     INSERT INTO tblUserProfile (id, firstname, lastname, phonenumber, address, gender, role)
@@ -27,7 +27,7 @@ module.exports = function (passport) {
                     RETURNING *;
                     `;
 
-                await pool.query(query, [newUser.id, newUser.firstName, newUser.lastName, '099123', 'testadress', 'male', 'buyer']);
+                await pool.query(query, ["123", "firstName", "lastName", '099123', 'testadress', 'male', 'buyer']);
 
                 done(null, "1");
             }
