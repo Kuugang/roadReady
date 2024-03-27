@@ -60,7 +60,7 @@ router.get(
                     VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
                     RETURNING *;
                     `;
-        await pool.query(query, ["123", "firstName", "lastName", '099123', 'testadress', 'male', 'buyer']);
+        await pool.query(query, ["123", "firstName", "lastName", '099123', 'testadress', 'male']);
         res.redirect('/log')
     }
 )

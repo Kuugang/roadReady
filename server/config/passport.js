@@ -27,7 +27,7 @@ module.exports = function (passport) {
                     RETURNING *;
                     `;
 
-                await pool.query(query, ["123", "firstName", "lastName", '099123', 'testadress', 'male', 'buyer']);
+                await pool.query(query, ["123", "firstName", "lastName", '099123', 'testadress', 'male']);
 
                 done(null, "1");
             }
