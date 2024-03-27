@@ -6,6 +6,8 @@ const port = 6969;
 const bodyParser = require("body-parser")
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
+const passport = require("passport");
+app.use(passport.initialize());
 
 app.use(
     cors({

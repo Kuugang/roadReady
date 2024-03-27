@@ -52,7 +52,6 @@ const {
     getUsers,
 } = require("../controllers/mainController");
 
-passport.initialize();
 passport.use(
     new GoogleStrategy({
         clientID: process.env.GOOGLE_CLIENT_ID,
