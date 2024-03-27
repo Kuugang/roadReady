@@ -9,7 +9,7 @@ module.exports = function (passport) {
             {
                 clientID: process.env.GOOGLE_AUTH_CLIENT_ID,
                 clientSecret: process.env.GOOGLE_AUTH_CLIENT_SECRET,
-                callbackURL: '/auth/google/callback',
+                callbackURL: 'https://road-ready-black.vercel.app/auth/google/callback',
                 passReqToCallback: true
             },
             async (accessToken, refreshToken, profile, done) => {
