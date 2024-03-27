@@ -52,6 +52,7 @@ async function sendMail(mailOptions,) {
     }
 }
 
+//todo fix register error
 const buyerRegister = asyncHandler(async (req, res) => {
     try {
         const requiredFields = ['email', 'password', 'firstName', 'lastName', 'phoneNumber', 'address', 'gender'];
