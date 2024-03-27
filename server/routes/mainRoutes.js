@@ -12,9 +12,6 @@ const passport = require("passport");
 const { pool } = require("../config/supabaseConfig")
 
 
-
-
-
 const {
     verifyDealershipAgentToken,
     verifyBuyerToken,
@@ -55,63 +52,31 @@ const {
     getUsers,
 } = require("../controllers/mainController");
 
+passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: "http://road-ready-black.vercel.app/auth/google/callback",
+    passReqToCallback: true
+},
+    async function (request, accessToken, refreshToken, profile, done) {
+        let query = "SELECT * FROM tblUserProfile WHERE firstName = $1";
+        const user = (await pool.query(query, ['Jake'])).rows[0];
+        return done(err, user);
+    }
+));
 
-passport.use(
-    new GoogleStrategy(
-        {
-            clientID: process.env.GOOGLE_AUTH_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_AUTH_CLIENT_SECRET,
-            callbackURL: 'http://road-ready-black.vercel.app/auth/google/callback',
-            passReqToCallback: true
-        },
-        async (accessToken, refreshToken, profile, done) => {
-            try {
-                // let testId = profile.id
+router.get('/auth/google',
+    passport.authenticate('google', {
+        scope:
+            ['email', 'profile']
+    }
+    ));
 
-                // const newUser = {
-                //     googleId: profile.id,
-                //     displayName: profile.displayName,
-                //     firstName: profile.name.givenName,
-                //     lastName: profile.name.familyName,
-                //     image: profile.photos[0].value,
-                //     email: profile.emails[0].value
-                // }
-
-                // const query = `
-                // INSERT INTO tblUserProfile (id, firstname, lastname, phonenumber, address, gender, role)
-                // VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
-                // RETURNING *;
-                // `;
-
-                // const user = (await pool.query(query, [uuidv4(), profile, "lastName", '099123', 'testadress', 'male'])).rows[0];
-                let query = "SELECT * FROM tblUserProfile WHERE firstName = $1";
-
-                const user = (await pool.query(query, ['Jake'])).rows[0];
-                if (user) {
-                    done(null, user);
-                } else {
-                    done(null, false, { message: 'User not found' });
-                }
-            } catch (error) {
-                console.error(error)
-            }
-        }
-    )
-)
-
-
-router.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }))
-
-router.get(
-    '/auth/google/callback',
+router.get('/auth/google/callback',
     passport.authenticate('google', {
         successRedirect: '/auth/google/success',
         failureRedirect: '/auth/google/failure'
-    }),
-    // async (req, res, next) => {
-    //     return res.status(200).json({ status: true, message: "Successfully logged in or register" });
-    // }
-)
+    }));
 
 
 
