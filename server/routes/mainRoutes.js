@@ -52,6 +52,23 @@ const {
     getUsers,
 } = require("../controllers/mainController");
 
+
+
+passport.serializeUser(function (user, done) {
+    done(null, user.id);
+});
+
+passport.deserializeUser(async function (id, done) {
+    try {
+        const query = "SELECT * FROM tblUserProfile WHERE id = $1";
+        const user = (await pool.query(query, [id])).rows[0];
+        done(null, user);
+    } catch (error) {
+        done(error, null);
+    }
+});
+
+
 passport.use(
     new GoogleStrategy({
         clientID: process.env.GOOGLE_CLIENT_ID,
@@ -83,7 +100,6 @@ router.get('/auth/google/callback',
         return res.redirect('/log')
     }
 );
-
 
 
 //REGISTER
