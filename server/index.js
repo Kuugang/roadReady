@@ -7,6 +7,12 @@ const bodyParser = require("body-parser")
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 
+const passport = require("passport");
+require('./conf/passport')(passport);
+
+app.use(passport.initialize())
+app.use(passport.session())
+
 app.use(
     cors({
         origin:

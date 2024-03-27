@@ -46,10 +46,7 @@ const {
     getUsers,
 } = require("../controllers/mainController");
 
-
-
 router.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }))
-
 
 router.get(
     '/auth/google/callback',
@@ -61,6 +58,20 @@ router.get(
         res.redirect('/log')
     }
 )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //REGISTER
 router.route("/buyer/register").post(buyerRegister);

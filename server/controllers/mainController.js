@@ -539,8 +539,6 @@ const updateListing = asyncHandler(async (req, res) => {
     }
 });
 
-
-
 const createCashApplicationRequest = asyncHandler(async (req, res) => {
     const requiredFields = ['listingId'];
     const fieldsValidation = validateRequiredFields(requiredFields, req.body, res);
@@ -783,7 +781,7 @@ const updateRegistrationRequest = asyncHandler(async (req, res) => {
         return res.status(200).json({ status: true, message: "Updated registration progress" });
     } catch (error) {
         console.log(error)
-        res.status(500).json({ status: false, message: error.message })
+        return res.status(500).json({ status: false, message: error.message })
     }
 })
 

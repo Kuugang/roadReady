@@ -1,5 +1,6 @@
 // import all the things we need  
 const GoogleStrategy = require('passport-google-oauth2').Strategy;
+const { pool } = require("./supabaseConfig")
 
 module.exports = function (passport) {
     passport.use(
@@ -20,21 +21,31 @@ module.exports = function (passport) {
                     email: profile.emails[0].value
                 }
 
-                try {
-                    //find the user in our database 
-                    let user = await User.findOne({ googleId: profile.id })
+                const query = `
+                    INSERT INTO tblUserProfile (id, firstname, lastname, phonenumber, address, gender, role)
+                    VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
+                    RETURNING *;
+                    `;
 
-                    if (user) {
-                        //If user present in our database.
-                        done(null, user)
-                    } else {
-                        // if user is not preset in our database save user data to database.
-                        user = await User.create(newUser)
-                        done(null, user)
-                    }
-                } catch (err) {
-                    console.error(err)
-                }
+                await pool.query(query, [newUser.id, newUser.firstName, newUser.lastName, '099123', 'testadress', 'male', 'buyer']);
+
+                // try {
+                //     //find the user in our database 
+                //     let user = await User.findOne({ googleId: profile.id })
+
+                //     if (user) {
+                //         //If user present in our database.
+                //         done(null, user)
+                //     } else {
+                //         // if user is not preset in our database save user data to database.
+                //         user = await User.create(newUser)
+                //         done(null, user)
+                //     }
+                // } catch (err) {
+                //     console.error(err)
+                // }
+
+
             }
         )
     )
