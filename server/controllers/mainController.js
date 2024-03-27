@@ -133,49 +133,54 @@ const dealerRegister = asyncHandler(async (req, res) => {
         return res.status(201).json({ message: "Successfully registered" });
     } catch (error) {
         console.log(error);
-        return res.status(500).json({ error });
+        return res.status(500).json(error);
     }
-
 });
 
 const login = asyncHandler(async (req, res) => {
-    const fieldsValidation = validateRequiredFields(['email', 'password'], req.body, res)
-    if (fieldsValidation) return fieldsValidation;
-    const { email, password } = req.body;
+    try {
 
-    let { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password
-    })
+        const fieldsValidation = validateRequiredFields(['email', 'password'], req.body, res)
+        if (fieldsValidation) return fieldsValidation;
+        const { email, password } = req.body;
 
-    if (error || !data) {
-        return res.status(401).json({ error: 'Invalid email or password' });
+        let { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password
+        })
+
+        if (error || !data) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+
+        let query = `SELECT * FROM tblUserProfile where id =$1`;
+        const user = (await pool.query(query, [data.user.id])).rows[0];
+
+        const token = jwt.sign(
+            user,
+            process.env.JWT_SECRET,
+            { expiresIn: 86400 }
+        );
+
+        res.cookie('jwt', token, {
+            path: '/',
+            domain: '',
+            sameSite: 'None',
+            secure: true
+        });
+        res.cookie('access_token', data.session.access_token, {
+            path: '/',
+            domain: '',
+            sameSime: 'None',
+            secure: true
+        })
+
+        user.token = token;
+        return res.status(200).json(user);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json(error);
     }
-
-    let query = `SELECT * FROM tblUserProfile where id =$1`;
-    const user = (await pool.query(query, [data.user.id])).rows[0];
-
-    const token = jwt.sign(
-        user,
-        process.env.JWT_SECRET,
-        { expiresIn: 86400 }
-    );
-
-    res.cookie('jwt', token, {
-        path: '/',
-        domain: '',
-        sameSite: 'None',
-        secure: true
-    });
-    res.cookie('access_token', data.session.access_token, {
-        path: '/',
-        domain: '',
-        sameSime: 'None',
-        secure: true
-    })
-
-    user.token = token;
-    return res.status(200).json(user);
 });
 
 const getUserProfile = asyncHandler(async (req, res) => {
@@ -348,9 +353,9 @@ const getListing = asyncHandler(async (req, res) => {
                                      'latitude', d.latitude,
                                      'longitude', d.longitude) AS dealership,
                     json_build_object('id', a.id,
-                                    'firstName', a.firstname,
-                                    'lastName', a.lastname,
-                                    'phoneNumber', a.phoneNumber) AS dealershipAgent
+                                    'firstname', a.firstname,
+                                    'lastname', a.lastname,
+                                    'phonenumber', a.phoneNumber) AS dealershipAgent
                     FROM tblListing l
             LEFT JOIN tblDealership d ON l.dealership = d.id
             LEFT JOIN tblUserProfile a ON l.dealershipAgent = a.id
@@ -368,9 +373,9 @@ const getListing = asyncHandler(async (req, res) => {
                                      'latitude', d.latitude,
                                      'longitude', d.longitude) AS dealership,
                     json_build_object('id', a.id,
-                                    'firstName', a.firstname,
-                                    'lastName', a.lastname,
-                                    'phoneNumber', a.phoneNumber) AS dealershipAgent
+                                    'firstname', a.firstname,
+                                    'lastname', a.lastname,
+                                    'phonenumber', a.phoneNumber) AS dealershipAgent
                     FROM tblListing l
             LEFT JOIN tblDealership d ON l.dealership = d.id
             LEFT JOIN tblUserProfile a ON l.dealershipAgent = a.id
@@ -388,9 +393,9 @@ const getListing = asyncHandler(async (req, res) => {
                                      'latitude', d.latitude,
                                      'longitude', d.longitude) AS dealership,
                     json_build_object('id', a.id,
-                                    'firstName', a.firstname,
-                                    'lastName', a.lastname,
-                                    'phoneNumber', a.phoneNumber) AS dealershipAgent
+                                    'firstname', a.firstname,
+                                    'lastname', a.lastname,
+                                    'phonenumber', a.phoneNumber) AS dealershipAgent
                     FROM tblListing l
             LEFT JOIN tblDealership d ON l.dealership = d.id
             LEFT JOIN tblUserProfile a ON l.dealershipAgent = a.id
@@ -407,9 +412,9 @@ const getListing = asyncHandler(async (req, res) => {
                                     'latitude', d.latitude,
                                     'longitude', d.longitude) AS dealership,
                 json_build_object('id', a.id,
-                                'firstName', a.firstname,
-                                'lastName', a.lastname,
-                                'phoneNumber', a.phoneNumber) AS dealershipAgent
+                                'firstname', a.firstname,
+                                'lastname', a.lastname,
+                                'phonenumber', a.phoneNumber) AS dealershipAgent
                 FROM tblListing l
         LEFT JOIN tblDealership d ON l.dealership = d.id
         LEFT JOIN tblUserProfile a ON l.dealershipAgent = a.id`;
@@ -426,10 +431,16 @@ const getDealership = asyncHandler(async (req, res) => {
     const { dealershipName, dealershipId, latitude, longitude, km } = req.query;
 
     if (latitude && longitude && km) {
-        let query = `SELECT * FROM tblDealership WHERE 
-                 acos(sin(radians(latitude)) * sin(radians($1)) +
-                      cos(radians(latitude)) * cos(radians($2)) *
-                      cos(radians(longitude) - radians($3))) * 6371 <= $4`;
+        let query = `SELECT d.*,
+                json_build_object('id', u.id, 
+                                 'firstname', u.firstname, 
+                                 'lastname', u.lastname, 
+                                 'phonenumber', u.phonenumber) AS manager
+                FROM tblDealership d
+                LEFT JOIN tblUserProfile u ON d.manager = u.id 
+                WHERE acos(sin(radians(latitude)) * sin(radians($1)) +
+                cos(radians(latitude)) * cos(radians($2)) *
+                cos(radians(longitude) - radians($3))) * 6371 <= $4`;
         const dealerships = (await pool.query(query, [latitude, latitude, longitude, km])).rows;
         return res.status(200).json(dealerships)
     }
@@ -439,10 +450,10 @@ const getDealership = asyncHandler(async (req, res) => {
 
         let query = `
         SELECT d.*,
-               json_build_object('id', u.id, 
-                                 'firstName', u.firstname, 
-                                 'lastName', u.lastname, 
-                                 'phoneNumber', u.phonenumber) AS manager
+                json_build_object('id', u.id, 
+                                 'firstmame', u.firstname, 
+                                 'lastname', u.lastname, 
+                                 'phonenumber', u.phonenumber) AS manager
                 FROM tblDealership d
         LEFT JOIN tblUserProfile u ON d.manager = u.id
         WHERE LOWER(name) LIKE $1`;
@@ -455,9 +466,9 @@ const getDealership = asyncHandler(async (req, res) => {
         let query = `
         SELECT d.*,
                json_build_object('id', u.id, 
-                                 'firstName', u.firstname, 
-                                 'lastName', u.lastname, 
-                                 'phoneNumber', u.phonenumber) AS manager
+                                 'firstname', u.firstname, 
+                                 'lastname', u.lastname, 
+                                 'phonenumber', u.phonenumber) AS manager
                 FROM tblDealership d
         LEFT JOIN tblUserProfile u ON d.manager = u.id
         WHERE d.id = $1`;
@@ -469,9 +480,9 @@ const getDealership = asyncHandler(async (req, res) => {
     let query = `
     SELECT d.*,
            json_build_object('id', u.id, 
-                             'firstName', u.firstname, 
-                             'lastName', u.lastname, 
-                             'phoneNumber', u.phonenumber) AS manager
+                             'firstname', u.firstname, 
+                             'lastname', u.lastname, 
+                             'phonenumber', u.phonenumber) AS manager
             FROM tblDealership d
     LEFT JOIN tblUserProfile u ON d.manager = u.id`;
 

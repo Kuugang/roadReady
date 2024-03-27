@@ -101,7 +101,7 @@
 - ` ` - Returns all dealership
 - `dealershipId`
 - `dealershipName`
-- `latitude` `longitude` `km` -returns dealerships within n _km_ around given location
+- `latitude` `longitude` `km` -returns dealerships within _n km_ around given location
 
 <hr>
 
