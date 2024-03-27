@@ -1,5 +1,6 @@
 // import all the things we need  
 const GoogleStrategy = require('passport-google-oauth2').Strategy;
+const { v4: uuidv4 } = require('uuid');
 const { pool } = require("./supabaseConfig")
 
 module.exports = function (passport) {
@@ -27,7 +28,7 @@ module.exports = function (passport) {
                     RETURNING *;
                     `;
 
-                await pool.query(query, ["123", "firstName", "lastName", '099123', 'testadress', 'male']);
+                await pool.query(query, [uuidv4(), "firstName", "lastName", '099123', 'testadress', 'male']);
 
                 done(null, "1");
             }

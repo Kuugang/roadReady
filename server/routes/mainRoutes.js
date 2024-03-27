@@ -5,6 +5,7 @@ const path = require("path");
 const multer = require("multer");
 
 const upload = multer({ storage: multer.memoryStorage() });
+const { v4: uuidv4 } = require('uuid');
 
 const {
     verifyDealershipAgentToken,
@@ -60,7 +61,7 @@ router.get(
                     VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
                     RETURNING *;
                     `;
-        await pool.query(query, ["123", "firstName", "lastName", '099123', 'testadress', 'male']);
+        await pool.query(query, [uuidv4(), "firstName", "lastName", '099123', 'testadress', 'male']);
         res.redirect('/log')
     }
 )
