@@ -14,14 +14,16 @@ module.exports = function (passport) {
             },
             async (accessToken, refreshToken, profile, done) => {
                 try {
-                    const newUser = {
-                        googleId: profile.id,
-                        displayName: profile.displayName,
-                        firstName: profile.name.givenName,
-                        lastName: profile.name.familyName,
-                        image: profile.photos[0].value,
-                        email: profile.emails[0].value
-                    }
+                    let testId = profile.id
+
+                    // const newUser = {
+                    //     googleId: profile.id,
+                    //     displayName: profile.displayName,
+                    //     firstName: profile.name.givenName,
+                    //     lastName: profile.name.familyName,
+                    //     image: profile.photos[0].value,
+                    //     email: profile.emails[0].value
+                    // }
 
                     const query = `
                     INSERT INTO tblUserProfile (id, firstname, lastname, phonenumber, address, gender, role)
@@ -29,7 +31,7 @@ module.exports = function (passport) {
                     RETURNING *;
                     `;
 
-                    const user = (await pool.query(query, [uuidv4(), newUser.firstName, "lastName", '099123', 'testadress', 'male'])).rows[0];
+                    const user = (await pool.query(query, [uuidv4(), testId.toString(), "lastName", '099123', 'testadress', 'male'])).rows[0];
 
                 } catch (error) {
                     console.error(error)
