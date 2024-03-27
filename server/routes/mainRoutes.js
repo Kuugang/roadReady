@@ -62,6 +62,7 @@ passport.use(
         async function (request, accessToken, refreshToken, profile, done) {
             let query = "SELECT * FROM tblUserProfile WHERE firstName = $1";
             const user = (await pool.query(query, ['Jake'])).rows[0];
+            console.log(user);
             return done(null, user);
         }
     ));
