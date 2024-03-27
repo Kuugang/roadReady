@@ -56,21 +56,9 @@ router.get(
         failureRedirect: '/auth/google/failure'
     }),
     async (req, res, next) => {
-        const query = `
-                    INSERT INTO tblUserProfile (id, firstname, lastname, phonenumber, address, gender, role)
-                    VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
-                    RETURNING *;
-                    `;
-        await pool.query(query, [uuidv4(), "firstName", "lastName", '099123', 'testadress', 'male']);
         return res.status(200).json({ status: true, message: "Successfully logged in or register" });
     }
 )
-
-
-
-
-
-
 
 
 

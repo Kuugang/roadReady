@@ -13,14 +13,14 @@ module.exports = function (passport) {
                 passReqToCallback: true
             },
             async (accessToken, refreshToken, profile, done) => {
-                // const newUser = {
-                //     googleId: profile.id,
-                //     displayName: profile.displayName,
-                //     firstName: profile.name.givenName,
-                //     lastName: profile.name.familyName,
-                //     image: profile.photos[0].value,
-                //     email: profile.emails[0].value
-                // }
+                const newUser = {
+                    googleId: profile.id,
+                    displayName: profile.displayName,
+                    firstName: profile.name.givenName,
+                    lastName: profile.name.familyName,
+                    image: profile.photos[0].value,
+                    email: profile.emails[0].value
+                }
                 try {
                     const query = `
                     INSERT INTO tblUserProfile (id, firstname, lastname, phonenumber, address, gender, role)
@@ -28,23 +28,12 @@ module.exports = function (passport) {
                     RETURNING *;
                     `;
 
-                    const user = (await pool.query(query, [uuidv4(), "firstName", "lastName", '099123', 'testadress', 'male'])).rows[0];
+                    const user = (await pool.query(query, [uuidv4(), newUser.firstName, "lastName", '099123', 'testadress', 'male'])).rows[0];
 
-                    done(null, user);
                 } catch (error) {
                     console.error(error)
                 }
             }
         )
     )
-
-    // used to serialize the user for the session
-    passport.serializeUser((user, done) => {
-        done(null, user.id)
-    })
-
-    // used to deserialize the user
-    passport.deserializeUser((id, done) => {
-        done(err, id);
-    })
 }
