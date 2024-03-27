@@ -5,7 +5,7 @@ const verifyToken = async (req, res, next, privileges) => {
     const token = req.cookies.jwt;
 
     if (!token) {
-        return res.status(401).send("Unauthorized");
+        return res.status(401).json({ status: false, message: "Unauthorized access to endpoint" });
     }
 
     try {
@@ -20,16 +20,16 @@ const verifyToken = async (req, res, next, privileges) => {
 
         const payload = jwt.verify(token, process.env.JWT_SECRET);
         if (payload.isapproved == false) {
-            return res.status(401).send("Unauthorized");
+            return res.status(401).json({ status: false, message: "Unauthorized access to endpoint" });
         }
         if (!privileges.includes(payload.role)) {
-            return res.status(401).send("Unauthorized");
+            return res.status(401).json({ status: false, message: "Unauthorized access to endpoint" });
         }
         req.tokenData = payload;
         next();
     } catch (error) {
         console.error(error);
-        return res.status(401).send("Unauthorized");
+        return res.status(401).json({ status: false, message: "Unauthorized access to endpoint" });
     }
 };
 
