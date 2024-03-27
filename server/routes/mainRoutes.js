@@ -77,6 +77,7 @@ passport.use(
         passReqToCallback: true
     },
         async function (request, accessToken, refreshToken, profile, done) {
+            console.log(profile);
             let query = "SELECT * FROM tblUserProfile WHERE firstName = $1";
             const user = (await pool.query(query, ['Jake'])).rows[0];
             console.log(user);
