@@ -32,7 +32,7 @@ module.exports = function (passport) {
                     // `;
 
                     // const user = (await pool.query(query, [uuidv4(), profile, "lastName", '099123', 'testadress', 'male'])).rows[0];
-
+                    done(null, 0);
                 } catch (error) {
                     console.error(error)
                 }
