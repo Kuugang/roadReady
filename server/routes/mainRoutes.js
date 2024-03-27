@@ -52,18 +52,19 @@ const {
     getUsers,
 } = require("../controllers/mainController");
 
-passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "http://road-ready-black.vercel.app/auth/google/callback",
-    passReqToCallback: true
-},
-    async function (request, accessToken, refreshToken, profile, done) {
-        let query = "SELECT * FROM tblUserProfile WHERE firstName = $1";
-        const user = (await pool.query(query, ['Jake'])).rows[0];
-        return done(err, user);
-    }
-));
+passport.use(
+    new GoogleStrategy({
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: "http://road-ready-black.vercel.app/auth/google/callback",
+        passReqToCallback: true
+    },
+        async function (request, accessToken, refreshToken, profile, done) {
+            let query = "SELECT * FROM tblUserProfile WHERE firstName = $1";
+            const user = (await pool.query(query, ['Jake'])).rows[0];
+            return done(err, user);
+        }
+    ));
 
 router.get('/auth/google',
     passport.authenticate('google', {
@@ -77,8 +78,6 @@ router.get('/auth/google/callback',
         successRedirect: '/auth/google/success',
         failureRedirect: '/auth/google/failure'
     }));
-
-
 
 
 
