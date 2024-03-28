@@ -14,7 +14,7 @@
 - `lastName` \*
 - `phoneNumber` \*
 - `address` \*
-- `gender` \*
+- `gender` _male/female_\*
 
 <hr>
 
@@ -32,7 +32,7 @@
 - `lastName` \*
 - `phoneNumber` \*
 - `address` \*
-- `gender` \*
+- `gender` _male/female_ \*
 - `dealershipName` \*
 
 <hr>
@@ -64,7 +64,7 @@
 - `lastName`
 - `phoneNumber`
 - `address`
-- `gender`
+- `gender ` _male/female_
 
 <hr>
 
@@ -101,6 +101,9 @@
 - ` ` - Returns all dealership
 - `dealershipId`
 - `dealershipName`
+
+###### Parameters (URL Encoded)
+
 - `latitude` `longitude` `km` -returns dealerships within _n km_ around given location
 
 <hr>
