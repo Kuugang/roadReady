@@ -4,8 +4,6 @@ const path = require("path");
 const multer = require("multer");
 
 const upload = multer({ storage: multer.memoryStorage() });
-const passport = require("passport");
-
 
 const {
     verifyDealershipAgentToken,
@@ -17,6 +15,7 @@ const {
 
 const {
     buyerRegister,
+    buyerAuthGoogle,
     dealerRegister,
     login,
 
@@ -47,78 +46,7 @@ const {
     getUsers,
 } = require("../controllers/mainController");
 
-// passport.serializeUser(function (user, done) {
-//     done(null, user.id);
-// });
 
-// passport.deserializeUser(async function (id, done) {
-//     try {
-//         const query = "SELECT * FROM tblUserProfile WHERE id = $1";
-//         const user = (await pool.query(query, [id])).rows[0];
-//         done(null, user);
-//     } catch (error) {
-//         done(error, null);
-//     }
-// });
-
-// passport.use(
-//     new GoogleStrategy({
-//         clientID: process.env.GOOGLE_CLIENT_ID,
-//         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-//         callbackURL: "http://road-ready-black.vercel.app/auth/google/callback",
-//         passReqToCallback: true
-//     },
-//         async function (request, accessToken, refreshToken, profile, done) {
-//             console.log(profile);
-
-//             let { data, error } = await supabase.auth.signInWithPassword({
-//                 email: email,
-//                 password: password
-//             })
-
-//             let query = "SELECT * FROM tblUserProfile WHERE firstName = $1";
-//             const user = (await pool.query(query, ['Jake'])).rows[0];
-//             console.log(user);
-//             return done(null, user);
-//         }
-//     ));
-
-const { supabase } = require("../config/supabaseConfig")
-
-router.get('/test/google', async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-            queryParams: {
-                access_type: 'offline',
-                prompt: 'consent',
-            },
-        },
-    })
-});
-
-router.get('/auth/google',
-    passport.authenticate('google', {
-        scope:
-            ['email', 'profile']
-    }
-    ));
-
-router.get('/auth/google/callback',
-    passport.authenticate('google', {
-        successRedirect: '/auth/google/success',
-        failureRedirect: '/auth/google/failure'
-    })
-);
-
-
-router.get('/auth/google/success', (req, res) => {
-    res.send('Google authentication successful!');
-});
-
-router.get('/auth/google/failure', (req, res) => {
-    res.send('Google authentication failed!');
-});
 
 
 //REGISTER
@@ -127,6 +55,11 @@ router.route("/dealer/register").post(dealerRegister);
 
 //LOGIN
 router.route("/user/login").post(login);
+
+//AUTH LOGIN OR REGISTER
+router.route("/google/auth/buyer").post(buyerAuthGoogle);
+// router.route("/google/auth/dealer").post(buyerAuthGoogle);
+
 
 //GET PROFILE
 router.route("/user/profile").get(getUserProfile);

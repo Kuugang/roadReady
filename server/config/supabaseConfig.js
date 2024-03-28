@@ -44,8 +44,8 @@ const initializeDatabase = async () => {
 
         let createUserProfileTable = `CREATE TABLE IF NOT EXISTS tblUserProfile(
             id UUID PRIMARY KEY,
-            firstName VARCHAR(50) NOT NULL, 
-            lastName VARCHAR(50) NOT NULL, 
+            firstName VARCHAR(50), 
+            lastName VARCHAR(50), 
             email VARCHAR NOT NULL,
             phoneNumber VARCHAR(50),
             address VARCHAR(255),

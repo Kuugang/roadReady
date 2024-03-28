@@ -141,8 +141,8 @@ const dealerRegister = asyncHandler(async (req, res) => {
 const login = asyncHandler(async (req, res) => {
     try {
 
-        const fieldsValidation = validateRequiredFields(['email', 'password'], req.body, res)
-        if (fieldsValidation) return fieldsValidation;
+        const fieldsvalidation = validateRequiredFields(['email', 'password'], req.body, res)
+        if (fieldsvalidation) return fieldsvalidation;
         const { email, password } = req.body;
 
         let { data, error } = await supabase.auth.signInWithPassword({
@@ -163,7 +163,7 @@ const login = asyncHandler(async (req, res) => {
             { expiresIn: 86400 }
         );
 
-        res.cookie('jwt', token, {
+        res.cookie('api_access_token', token, {
             path: '/',
             domain: '',
             sameSite: 'None',
@@ -176,12 +176,42 @@ const login = asyncHandler(async (req, res) => {
             secure: true
         })
 
-        user.token = token;
         return res.status(200).json({ status: true, message: "Login success", data: { user } });
     } catch (error) {
         return res.status(500).json({ status: false, message: error.message });
     }
 });
+
+const buyerAuthGoogle = asyncHandler(async (req, res) => {
+    const { data: { user: userData }, error } = await supabase.auth.getUser(req.cookies.access_token)
+
+    if (error) {
+        return res.status(400).json({ status: false, message: "Error authenticating with google" })
+    }
+
+    let query = `SELECT * FROM tblUserProfile where id = $1`;
+    let user = (await pool.query(query, [userData.id])).rows[0];
+
+    if (!user) {
+        query = "INSERT INTO tblUserProfile (id, email, role) VALUES ($1, $2, $3, $4, 'buyer') RETURNING *"
+        user = (await pool.query(query, [userData.id, userData.email])).rows[0];
+    }
+
+    const token = jwt.sign(
+        user,
+        process.env.JWT_SECRET,
+        { expiresIn: 86400 }
+    );
+
+    res.cookie('api_access_token', token, {
+        path: '/',
+        domain: '',
+        sameSite: 'None',
+        secure: true
+    });
+
+    return res.status(200).json({ status: true, message: "Login success", data: { user } });
+})
 
 const getUserProfile = asyncHandler(async (req, res) => {
     try {
@@ -860,6 +890,7 @@ module.exports = {
     buyerRegister,
     dealerRegister,
     login,
+    buyerAuthGoogle,
     getUserProfile,
 
     updateUserProfile,

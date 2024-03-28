@@ -2,7 +2,7 @@ const jwt = require("jsonwebtoken");
 const { pool } = require("../config/supabaseConfig")
 
 const verifyToken = async (req, res, next, privileges) => {
-    const token = req.cookies.jwt;
+    const token = req.cookies.api_access_token;
 
     if (!token) {
         return res.status(401).json({ status: false, message: "Unauthorized access to endpoint" });

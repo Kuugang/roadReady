@@ -101,6 +101,9 @@
 - ` ` - Returns all dealership
 - `dealershipId`
 - `dealershipName`
+
+###### Parameters (URL Encoded)
+
 - `latitude` `longitude` `km` -returns dealerships within _n km_ around given location
 
 <hr>

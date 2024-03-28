@@ -25,6 +25,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Separator } from "@/components/ui/separator";
 
+//for test
+import { createClient } from "@supabase/supabase-js";
+const supabase = createClient("supabase url", "public key");
+
 const formSchema = z.object({
   email: z.string().email(),
   password: z.string(),
@@ -41,6 +45,32 @@ export default function Login() {
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     console.log(values);
+  }
+
+  async function handleGoogleAuth() {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      {
+        /* TODO: after google auth should post request api route "/google/auth/buyer" or "/google/auth/dealer" depending on user type should also pass access token from google auth in request body*/
+      }
+
+      {
+        /* para ni maka decide ko whether to create a new row or login lang and maka return kog cookie for auth*/
+      }
+
+      {
+        /* to be revised pa ang routes cause wa ko kasabot sa ilang users*/
+      }
+    } catch (error) {
+      console.error("Error authenticating with Google via Supabase:", error);
+    }
   }
 
   return (
@@ -87,7 +117,9 @@ export default function Login() {
             <Separator />
 
             {/* TODO: add a google button here */}
-            <Button type="button">Google button here</Button>
+            <Button onClick={handleGoogleAuth} type="button">
+              Google button here
+            </Button>
           </form>
         </Form>
       </CardContent>
