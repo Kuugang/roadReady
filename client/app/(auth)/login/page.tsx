@@ -58,7 +58,7 @@ export default function Login() {
       }
 
       {
-        /* TODO: after google auth should post request api route "/google/auth/buyer" or "/google/auth/dealer" depending on user type should also pass access token from google auth in request body*/
+        /* TODO: after google auth should post request api route "/google/auth/buyer" or "/google/auth/dealer" depending on user type should also pass access_token from google auth in cookie header*/
       }
 
       {
