@@ -52,6 +52,22 @@
 
 <hr>
 
+### Google Auth
+
+#### Routes
+
+`/auth/google/buyer`
+
+`/auth/google/dealershipAgent`
+
+#### Method: POST
+
+###### Parameters (Request Header Cookie)
+
+- `access_token` _access_token from google OAuth_ \*
+
+<hr>
+
 ### Update Profile
 
 `/user/profile`
