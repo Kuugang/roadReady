@@ -4,12 +4,7 @@ const path = require("path");
 const multer = require("multer");
 
 const upload = multer({ storage: multer.memoryStorage() });
-const { v4: uuidv4 } = require('uuid');
-
-
-const GoogleStrategy = require('passport-google-oauth2').Strategy;
 const passport = require("passport");
-const { supabase, pool } = require("../config/supabaseConfig")
 
 
 const {
@@ -52,44 +47,41 @@ const {
     getUsers,
 } = require("../controllers/mainController");
 
+// passport.serializeUser(function (user, done) {
+//     done(null, user.id);
+// });
 
+// passport.deserializeUser(async function (id, done) {
+//     try {
+//         const query = "SELECT * FROM tblUserProfile WHERE id = $1";
+//         const user = (await pool.query(query, [id])).rows[0];
+//         done(null, user);
+//     } catch (error) {
+//         done(error, null);
+//     }
+// });
 
-passport.serializeUser(function (user, done) {
-    done(null, user.id);
-});
+// passport.use(
+//     new GoogleStrategy({
+//         clientID: process.env.GOOGLE_CLIENT_ID,
+//         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+//         callbackURL: "http://road-ready-black.vercel.app/auth/google/callback",
+//         passReqToCallback: true
+//     },
+//         async function (request, accessToken, refreshToken, profile, done) {
+//             console.log(profile);
 
-passport.deserializeUser(async function (id, done) {
-    try {
-        const query = "SELECT * FROM tblUserProfile WHERE id = $1";
-        const user = (await pool.query(query, [id])).rows[0];
-        done(null, user);
-    } catch (error) {
-        done(error, null);
-    }
-});
+//             let { data, error } = await supabase.auth.signInWithPassword({
+//                 email: email,
+//                 password: password
+//             })
 
-
-passport.use(
-    new GoogleStrategy({
-        clientID: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: "http://road-ready-black.vercel.app/auth/google/callback",
-        passReqToCallback: true
-    },
-        async function (request, accessToken, refreshToken, profile, done) {
-            console.log(profile);
-
-            let { data, error } = await supabase.auth.signInWithPassword({
-                email: email,
-                password: password
-            })
-
-            let query = "SELECT * FROM tblUserProfile WHERE firstName = $1";
-            const user = (await pool.query(query, ['Jake'])).rows[0];
-            console.log(user);
-            return done(null, user);
-        }
-    ));
+//             let query = "SELECT * FROM tblUserProfile WHERE firstName = $1";
+//             const user = (await pool.query(query, ['Jake'])).rows[0];
+//             console.log(user);
+//             return done(null, user);
+//         }
+//     ));
 
 router.get('/auth/google',
     passport.authenticate('google', {
@@ -104,6 +96,7 @@ router.get('/auth/google/callback',
         failureRedirect: '/auth/google/failure'
     })
 );
+
 
 router.get('/auth/google/success', (req, res) => {
     res.send('Google authentication successful!');

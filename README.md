@@ -14,7 +14,7 @@
 - `lastName` \*
 - `phoneNumber` \*
 - `address` \*
-- `gender` \*
+- `gender` _male/female_\*
 
 <hr>
 
@@ -32,7 +32,7 @@
 - `lastName` \*
 - `phoneNumber` \*
 - `address` \*
-- `gender` \*
+- `gender` _male/female_ \*
 - `dealershipName` \*
 
 <hr>
@@ -64,7 +64,7 @@
 - `lastName`
 - `phoneNumber`
 - `address`
-- `gender`
+- `gender ` _male/female_
 
 <hr>
 

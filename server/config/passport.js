@@ -1,53 +1,43 @@
-// import all the things we need  
 const GoogleStrategy = require('passport-google-oauth2').Strategy;
-const { v4: uuidv4 } = require('uuid');
-const { pool } = require("./supabaseConfig")
+const { supabase, pool } = require("./supabaseConfig")
 
 module.exports = function (passport) {
+
+
     passport.use(
-        new GoogleStrategy(
-            {
-                clientID: process.env.GOOGLE_AUTH_CLIENT_ID,
-                clientSecret: process.env.GOOGLE_AUTH_CLIENT_SECRET,
-                callbackURL: 'http://road-ready-black.vercel.app/auth/google/callback',
-                passReqToCallback: true
-            },
-            async (accessToken, refreshToken, profile, done) => {
-                try {
-                    // let testId = profile.id
+        new GoogleStrategy({
+            clientID: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            callbackURL: "http://road-ready-black.vercel.app/auth/google/callback",
+            passReqToCallback: true
+        },
+            async function (request, accessToken, refreshToken, profile, done) {
+                console.log(profile);
 
-                    // const newUser = {
-                    //     googleId: profile.id,
-                    //     displayName: profile.displayName,
-                    //     firstName: profile.name.givenName,
-                    //     lastName: profile.name.familyName,
-                    //     image: profile.photos[0].value,
-                    //     email: profile.emails[0].value
-                    // }
+                let { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                })
 
-                    // const query = `
-                    // INSERT INTO tblUserProfile (id, firstname, lastname, phonenumber, address, gender, role)
-                    // VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
-                    // RETURNING *;
-                    // `;
-
-                    // const user = (await pool.query(query, [uuidv4(), profile, "lastName", '099123', 'testadress', 'male'])).rows[0];
-                    done(null, 0);
-                } catch (error) {
-                    console.error(error)
-                }
+                let query = "SELECT * FROM tblUserProfile WHERE firstName = $1";
+                const user = (await pool.query(query, ['Jake'])).rows[0];
+                console.log(user);
+                return done(null, user);
             }
         )
-    )
+    );
 
+    passport.serializeUser(function (user, done) {
+        done(null, user.id);
+    });
 
-    // used to serialize the user for the session
-    passport.serializeUser((user, done) => {
-        done(null, "1")
-    })
-
-    // used to deserialize the user
-    passport.deserializeUser((id, done) => {
-        done(err, "1");
-    })
+    passport.deserializeUser(async function (id, done) {
+        try {
+            const query = "SELECT * FROM tblUserProfile WHERE id = $1";
+            const user = (await pool.query(query, [id])).rows[0];
+            done(null, user);
+        } catch (error) {
+            done(error, null);
+        }
+    });
 }
