@@ -15,9 +15,11 @@ const {
 
 const {
     buyerRegister,
-    buyerAuthGoogle,
     dealerRegister,
     login,
+    authBuyerGoogle,
+    authDealershipAgentGoogle,
+
 
     getUserProfile,
     updateUserProfile,
@@ -57,8 +59,8 @@ router.route("/dealer/register").post(dealerRegister);
 router.route("/user/login").post(login);
 
 //AUTH LOGIN OR REGISTER
-router.route("/google/auth/buyer").post(buyerAuthGoogle);
-// router.route("/google/auth/dealer").post(buyerAuthGoogle);
+router.route("/auth/google/buyer").post(authBuyerGoogle);
+router.route("/auth/google/dealershipAgent").post(authDealershipAgentGoogle);
 
 
 //GET PROFILE
