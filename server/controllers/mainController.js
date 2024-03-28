@@ -71,12 +71,12 @@ const buyerRegister = asyncHandler(async (req, res) => {
         }
 
         const createUserProfileQuery = `
-        INSERT INTO tblUserProfile (id, firstname, lastname, phonenumber, address, gender, role)
-        VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
+        INSERT INTO tblUserProfile (id, firstname, lastname, email, phonenumber, address, gender, role)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'buyer')
         RETURNING *;
         `;
 
-        const { rows: userProfile, error: profileError } = await pool.query(createUserProfileQuery, [data.user.id, firstName, lastName, phoneNumber, address, gender]);
+        const { rows: userProfile, error: profileError } = await pool.query(createUserProfileQuery, [data.user.id, firstName, lastName, email, phoneNumber, address, gender]);
 
         if (profileError) {
             await supabase.auth.api.deleteUser(data.user.id);
@@ -116,12 +116,12 @@ const dealerRegister = asyncHandler(async (req, res) => {
         }
 
         const createUserProfileQuery = `
-            INSERT INTO tblUserProfile(id, firstname, lastname, phonenumber, address, gender, role)
-            VALUES ($1, $2, $3, $4, $5, $6, 'dealershipAgent')
+            INSERT INTO tblUserProfile(id, firstname, lastname, email, phonenumber, address, gender, role)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, 'dealershipAgent')
             RETURNING *;
         `;
 
-        const { rows: userProfile, error: profileError } = await pool.query(createUserProfileQuery, [data.user.id, firstName, lastName, phoneNumber, address, gender]);
+        const { rows: userProfile, error: profileError } = await pool.query(createUserProfileQuery, [data.user.id, firstName, lastName, email, phoneNumber, address, gender]);
 
         const createDealershipAgent = `INSERT INTO tblDealershipAgent (id, dealership) VALUES ($1, $2)`
         const { rows: dealershipAgent, error: dealershipAgentErorr } = await pool.query(createDealershipAgent, [data.user.id, dealership.id]);
@@ -423,7 +423,8 @@ const getListing = asyncHandler(async (req, res) => {
 })
 
 const getDealership = asyncHandler(async (req, res) => {
-    const { dealershipName, dealershipId, latitude, longitude, km } = req.query;
+    const { dealershipName, dealershipId } = req.query;
+    const { latitude, longitude, km } = req.body;
 
     if (dealershipId) {
         let query = `

@@ -83,6 +83,20 @@ const {
 //         }
 //     ));
 
+const { supabase } = require("../config/supabaseConfig")
+
+router.get('/test/google', async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            queryParams: {
+                access_type: 'offline',
+                prompt: 'consent',
+            },
+        },
+    })
+});
+
 router.get('/auth/google',
     passport.authenticate('google', {
         scope:
@@ -105,7 +119,6 @@ router.get('/auth/google/success', (req, res) => {
 router.get('/auth/google/failure', (req, res) => {
     res.send('Google authentication failed!');
 });
-
 
 
 //REGISTER

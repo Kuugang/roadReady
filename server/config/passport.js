@@ -2,8 +2,6 @@ const GoogleStrategy = require('passport-google-oauth2').Strategy;
 const { supabase, pool } = require("./supabaseConfig")
 
 module.exports = function (passport) {
-
-
     passport.use(
         new GoogleStrategy({
             clientID: process.env.GOOGLE_CLIENT_ID,
@@ -14,15 +12,24 @@ module.exports = function (passport) {
             async function (request, accessToken, refreshToken, profile, done) {
                 console.log(profile);
 
-                let { data, error } = await supabase.auth.signInWithPassword({
-                    email: email,
-                    password: password
-                })
+                // let { data, error } = await supabase.auth.signInWithPassword({
+                //     email: email,
+                //     password: password
+                // })
 
-                let query = "SELECT * FROM tblUserProfile WHERE firstName = $1";
-                const user = (await pool.query(query, ['Jake'])).rows[0];
-                console.log(user);
+                let query = "SELECT * FROM tblUserProfile WHERE email = $1";
+                const user = (await pool.query(query, [profile.email])).rows[0];
+
+                if (!user) {
+                    query = `
+                        INSERT INTO tblUserProfile (id, firstname, lastname, email, role)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, 'buyer')
+                        RETURNING *;
+                        `;
+
+                }
                 return done(null, user);
+                console.log(user);
             }
         )
     );
